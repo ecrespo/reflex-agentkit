@@ -1,0 +1,5 @@
+{"fixture": "stale_run_event", "reqs": ["REQ-010.1", "REQ-010.2"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "run_id": "$run", "diagnostics.codes": ["STALE_RUN_EVENT", "STALE_RUN_EVENT"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "an-older-run"}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "an-older-run"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

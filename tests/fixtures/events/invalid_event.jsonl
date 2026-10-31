@@ -1,0 +1,5 @@
+{"fixture": "invalid_event", "reqs": ["REQ-012.3"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "run_id": "$run", "diagnostics.codes": ["INVALID_EVENT", "INVALID_EVENT"]}}
+{"type": "RUN_STARTED", "threadId": "$thread"}
+{"no_type_at_all": true}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

@@ -331,6 +331,12 @@ def test_DM_10_assert_fixture_names_the_fixture_and_its_reqs(tmp_path: Path) -> 
         assert_fixture(fixture, FAKE)
 
 
+def test_DM_10_expect_may_use_placeholders(tmp_path: Path) -> None:
+    """DM §10: ``$thread``/``$run`` in ``expect`` resolve to the replay's IDs."""
+    header = {**HEADER, "expect": {"run_id": "$run", "thread_id": "$thread"}}
+    assert_fixture(load_fixture(_write(tmp_path, "demo", [header])), FAKE)
+
+
 def test_DM_10_fixture_dataclasses_are_frozen() -> None:
     """The parsed fixture is immutable, so a replay cannot alter it."""
     step = CommandStep(name="cancel_run", kwargs={})

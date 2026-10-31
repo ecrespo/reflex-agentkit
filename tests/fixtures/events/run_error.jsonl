@@ -1,0 +1,3 @@
+{"fixture": "run_error", "reqs": ["REQ-004.3"], "start": {"user_text": "hi"}, "expect": {"run_status": "error", "error": "model overloaded", "error_code": "AGENT_RUN_ERROR", "messages.length": 1, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "RUN_ERROR", "message": "model overloaded", "code": "overloaded"}

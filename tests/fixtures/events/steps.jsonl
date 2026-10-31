@@ -1,0 +1,6 @@
+{"fixture": "steps", "reqs": ["REQ-010.3"], "start": {"user_text": "plan a trip"}, "expect": {"run_status": "running", "current_step": "act", "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "STEP_STARTED", "stepName": "plan"}
+{"type": "STEP_FINISHED", "stepName": "plan"}
+{"type": "STEP_STARTED", "stepName": "act"}
+{"type": "STEP_FINISHED", "stepName": "some-other-step"}

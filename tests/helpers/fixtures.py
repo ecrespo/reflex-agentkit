@@ -306,10 +306,18 @@ def check_expect(view: Mapping[str, Any], expect: Mapping[str, Any]) -> list[str
     return problems
 
 
+def placeholders_of(result: ReplayResult) -> dict[str, str]:
+    """The placeholder values a replay assigned (for use in ``expect``)."""
+    mapping = {"$thread": result.conv.thread_id}
+    mapping.update(zip(("$run", "$run2"), result.run_ids, strict=False))
+    return mapping
+
+
 def assert_fixture(fixture: Fixture, engine: Engine | None = None) -> ReplayResult:
     """Replay ``fixture`` and fail with every mismatch against its ``expect``."""
     result = replay(fixture, engine)
-    problems = check_expect(view_of(result), fixture.expect)
+    expect = substitute(fixture.expect, placeholders_of(result))
+    problems = check_expect(view_of(result), expect)
     assert not problems, f"{fixture.name} ({', '.join(fixture.reqs)}):\n  " + "\n  ".join(problems)
     return result
 

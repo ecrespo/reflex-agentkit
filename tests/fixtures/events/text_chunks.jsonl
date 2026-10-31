@@ -1,0 +1,7 @@
+{"fixture": "text_chunks", "reqs": ["REQ-008.4", "REQ-008.6"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "messages.length": 3, "messages.1": {"id": "m1", "role": "assistant", "content": "Hel" , "streaming": false}, "messages.2": {"id": "m2", "content": "lo world", "streaming": false}, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TEXT_MESSAGE_CHUNK", "messageId": "m1", "role": "assistant", "delta": "He"}
+{"type": "TEXT_MESSAGE_CHUNK", "messageId": "m1", "delta": "l"}
+{"type": "TEXT_MESSAGE_CHUNK", "messageId": "m2", "delta": "lo"}
+{"type": "TEXT_MESSAGE_CHUNK", "delta": " world"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

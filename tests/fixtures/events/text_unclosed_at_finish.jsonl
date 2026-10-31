@@ -1,0 +1,6 @@
+{"fixture": "text_unclosed_at_finish", "reqs": ["REQ-008.6"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "messages.1": {"id": "m1", "content": "cut off", "streaming": false}, "diagnostics.codes": ["IGNORED_EVENT"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m1"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": "cut off"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": " after the end"}

@@ -629,9 +629,11 @@ def _tool_result(conv: ConversationState, event: ToolCallResultEvent) -> Convers
     content = _content_text(event.content)
     conv = _finish_call(conv, call)
     call = conv.tool_calls[conv._tool_index[call.id]]
-    conv = _replace_call(
-        conv, dataclasses.replace(call, status=ToolCallStatus.DONE, result=content)
-    )
+    # ``rejected`` and ``error`` are terminal (API §4.6, DM v1.9): the result is recorded,
+    # the status stays. PydanticAI answers a rejected approval with the denial text.
+    terminal = call.status in (ToolCallStatus.REJECTED, ToolCallStatus.ERROR)
+    status = call.status if terminal else ToolCallStatus.DONE
+    conv = _replace_call(conv, dataclasses.replace(call, status=status, result=content))
     if event.message_id in conv._message_index:
         return conv
     tool_message = ChatMessage(

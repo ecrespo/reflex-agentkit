@@ -429,12 +429,15 @@ def _hide_from_browser(cls: type) -> None:
 
     Reflex registers every public method of a state as an event handler the browser can
     call with any arguments, and skips functions flagged ``__override_base_method__``
-    (TD §6.1). The flag goes on ``AgentState``'s own hooks and on every override.
+    (TD §6.1). The flag goes on ``AgentState``'s own hooks and on every override found
+    along the MRO, including overrides from Reflex mixins that are not ``AgentState``s
+    (Reflex copies a mixin's handlers onto each class that uses it).
     """
-    for name in _NOT_HANDLERS:
-        fn = cls.__dict__.get(name)
-        if hasattr(fn, "__code__"):
-            fn.__override_base_method__ = True  # type: ignore[union-attr]
+    for base in cls.__mro__:
+        for name in _NOT_HANDLERS:
+            fn = base.__dict__.get(name)
+            if hasattr(fn, "__code__"):
+                fn.__override_base_method__ = True  # type: ignore[union-attr]
 
 
 def _validate(cls: type[AgentState]) -> None:

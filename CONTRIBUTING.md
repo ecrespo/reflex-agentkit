@@ -58,3 +58,13 @@ Requirement IDs are never reused.
 
 Do not add dependencies in a regular PR. New or re-pinned dependencies need a note in the
 Technical Design (DD-001) and are added by the maintainer with `uv add`.
+
+## Releases
+
+Releases are automatic (`.github/workflows/release.yml`). To release, bump
+`__version__` in `src/reflex_agentkit/__init__.py` (for example `0.1.0a2`, `0.1.0rc1` or
+`0.1.0`), move the `[Unreleased]` changelog entries under that version, and merge to
+`main`. The workflow runs the tests, publishes to PyPI through trusted publishing, and
+creates the `v<version>` tag and GitHub Release (marked as a pre-release for `a`, `b` and
+`rc` versions). A `.dev` version, or a version that is already tagged, publishes nothing.
+Pushing a matching `v*` tag by hand also publishes.

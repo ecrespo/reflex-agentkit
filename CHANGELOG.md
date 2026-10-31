@@ -64,8 +64,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `reflex_agentkit.core`, as in API §3.
 - `examples/quickstart/`: the 23-line quickstart, a uv workspace member, with an offline
   CI smoke job (`reflex compile --dry` with PydanticAI's `TestModel`).
-- Release workflow: a `v*` tag builds and publishes to PyPI through trusted publishing
-  and a reviewed `pypi` environment, for pre-releases and final releases alike.
+- Automatic releases: merging a new publishable `__version__` into `main` runs the tests,
+  publishes to PyPI through trusted publishing and creates the `v<version>` tag and GitHub
+  Release (`scripts/release_version.py` decides). Pre-releases go to PyPI too.
 - `reflex_agentkit.adapters.langgraph`: `LangGraphAGUIAgent` runs a compiled LangGraph
   graph through the official ag-ui-langgraph integration with standard interrupts. It
   requires a checkpointer, serves every session from one instance, keeps the graph's

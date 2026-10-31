@@ -345,6 +345,9 @@ The workflow is uv only (Python 3.11–3.13).
 | Core isolation check | `uv run python scripts/assert_core_isolated.py` |
 | Quickstart smoke (offline) | `uv run pytest tests/smoke` |
 
+Releases are automatic: merging a new version into `main` publishes it to PyPI (see
+[`CONTRIBUTING.md`](CONTRIBUTING.md#releases)).
+
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`specs/constitution.md`](specs/constitution.md)
 before contributing. The rules: the specs come first, `core` and `state` are written
 test-first, and changes use Conventional Commits.

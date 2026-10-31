@@ -1,16 +1,23 @@
 name: Release
 
-# A `v*` tag builds the sdist and wheel and publishes them to PyPI through trusted
-# publishing (no stored token, REQ-032.2). Pre-release tags (`a`, `b`, `rc`) and final tags
-# both go to PyPI through the `pypi` environment, which requires a reviewer. There is no
-# TestPyPI step (Plan v1.2).
+# Automatic releases to PyPI (REQ-032.2, Plan v1.3, TD §9.1):
+# - a push to `main` whose `__version__` is publishable (not `.dev`) and has no `v<version>`
+#   tag yet runs the tests, builds, publishes to PyPI and creates the tag and GitHub Release;
+# - a manually pushed `v*` tag that matches `__version__` publishes the same way.
+# Publishing uses PyPI trusted publishing (no stored token) from this file, `release.yml`,
+# in the `pypi` environment. There is no TestPyPI step.
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
 
 permissions:
   contents: read
+
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 env:
   UV_NO_SYNC: "1"
@@ -18,20 +25,30 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.decide.outputs.publish }}
+      tag: ${{ steps.decide.outputs.tag }}
+      prerelease: ${{ steps.decide.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
+          enable-cache: true
           python-version: "3.13"
-      - name: Check that the tag matches __version__
+      - run: uv sync --locked --all-extras --all-packages
+      - name: Decide whether this push is a release
+        id: decide
+        run: uv run python scripts/release_version.py
+      - name: Tests
+        if: steps.decide.outputs.publish == 'true'
         run: |
-          version="$(grep -Po '^__version__ = "\K[^"]+' src/reflex_agentkit/__init__.py)"
-          if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
-            echo "::error::tag ${GITHUB_REF_NAME} does not match __version__ ${version}"
-            exit 1
-          fi
-      - run: uv build
+          uv run pytest -q
+          uv run python scripts/check_gated_coverage.py
+      - name: Build
+        if: steps.decide.outputs.publish == 'true'
+        run: uv build
       - uses: actions/upload-artifact@v7
+        if: steps.decide.outputs.publish == 'true'
         with:
           name: dist
           path: dist/
@@ -39,6 +56,7 @@ jobs:
 
   pypi:
     needs: build
+    if: needs.build.outputs.publish == 'true'
     runs-on: ubuntu-latest
     environment:
       name: pypi
@@ -52,3 +70,30 @@ jobs:
           path: dist/
       - uses: astral-sh/setup-uv@v7
       - run: uv publish --trusted-publishing always --check-url https://pypi.org/simple/ dist/*
+
+  github-release:
+    needs: [build, pypi]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      TAG: ${{ needs.build.outputs.tag }}
+      PRERELEASE: ${{ needs.build.outputs.prerelease }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: dist
+          path: dist/
+      - name: Tag and create the GitHub Release
+        run: |
+          if gh release view "${TAG}" > /dev/null 2>&1; then
+            echo "Release ${TAG} already exists."
+            exit 0
+          fi
+          flags=(--title "${TAG}" --generate-notes --target "${GITHUB_SHA}")
+          if [ "${PRERELEASE}" = "true" ]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "${TAG}" dist/* "${flags[@]}"

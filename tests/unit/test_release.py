@@ -14,7 +14,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-import yaml
+import yaml  # type: ignore[import-untyped]  # PyYAML ships no stubs; it comes with LangChain
 
 ROOT = Path(__file__).resolve().parents[2]
 WORKFLOW = ROOT / ".github" / "workflows" / "release.yml"
@@ -26,6 +26,7 @@ def _load_script() -> ModuleType:
     )
     assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module  # dataclasses look the module up while decorating
     spec.loader.exec_module(module)
     return module
 

@@ -791,7 +791,9 @@
 - **Done:** three drafts exist, each with a "how to submit" header (target repo, path,
   PR title).
 
-### T-052 · `0.1.0rc1` → `v0.1.0` `[ ]`
+### T-052 · `0.1.0rc1` → `v0.1.0` `[!]`
+> **Note (2026-10-31):** the version is `0.1.0rc1` on `develop` and PR #2 (develop → main) is open. Blocked on the maintainer: register the PyPI pending publisher (T-041), merge PR #2 (which publishes `0.1.0rc1`), then the fresh-environment walkthrough, the CHANGELOG `[0.1.0]` section and the `0.1.0` bump follow.
+
 - **What:** bump to `0.1.0rc1` and merge to `main` (published automatically) → fresh-env walkthrough (the PydanticAI and
   LangGraph dojos plus the quickstart) → fix anything found → CHANGELOG `[0.1.0]` → bump
   to `0.1.0` → merge to `main` (published and tagged automatically) → verify

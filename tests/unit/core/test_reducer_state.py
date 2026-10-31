@@ -569,3 +569,11 @@ def test_DM_7_1_snapshot_does_not_overwrite_a_known_result() -> None:
     assert (conv.tool_calls[0].status, conv.tool_calls[0].result) == (ToolCallStatus.DONE, "first")
     running = reduce(_running_call(), _kept_call_snapshot(None))
     assert running.tool_calls[0].status is ToolCallStatus.RUNNING
+
+
+def test_DM_7_1_snapshot_never_replaces_edited_args() -> None:
+    """Arguments edited in an approval stay, even if the call streamed none."""
+    conv = _running_call()
+    edited = dataclasses.replace(conv.tool_calls[0], args={"city": "Porto"})
+    conv = reduce(conv.with_(tool_calls=(edited,)), _kept_call_snapshot(None, '{"city": "x"}'))
+    assert conv.tool_calls[0].args == {"city": "Porto"}

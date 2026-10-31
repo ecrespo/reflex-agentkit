@@ -325,7 +325,8 @@ def begin_run(
     client-tool round counter resets. Without it (a resume or a client-tool follow-up) the
     run joins the current turn, so late events of the turn's earlier runs are still
     recognized. Either way the answers and abandoned interrupts are captured in
-    ``resume`` and the pause bookkeeping is cleared.
+    ``resume`` and the pause bookkeeping is cleared. While an interrupt is still
+    unanswered (``awaiting_input``) no run can start, so the call is a no-op.
 
     Args:
         conv: The current conversation.
@@ -336,6 +337,8 @@ def begin_run(
         new_id: ID factory; UUID4 strings by default.
     """
     del resume
+    if conv.run_status is RunStatus.AWAITING_INPUT:
+        return conv  # REQ-015.1, DM v1.8: unanswered interrupts block a new run
     thread_id = conv.thread_id or new_id()
     run_id = new_id()
     messages = conv.messages

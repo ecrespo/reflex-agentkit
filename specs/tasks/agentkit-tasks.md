@@ -304,7 +304,7 @@
     passes for the fixtures' final states.
   - The output validates as `ag_ui.core.RunAgentInput`.
 
-### T-018 · Reducer property tests · TF `[ ]`
+### T-018 · Reducer property tests · TF `[x] 2026-10-31`
 - **What:** Hypothesis strategies that generate plausible-but-chaotic AG-UI event
   sequences (valid events with random IDs drawn from small pools, so collisions and
   out-of-order events are frequent) interleaved with commands. Properties:

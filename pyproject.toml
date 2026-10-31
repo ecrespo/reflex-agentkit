@@ -1,0 +1,67 @@
+[project]
+name = "reflex-agentkit"
+dynamic = ["version"]
+description = "The production UI layer for Python AI agents, built on Reflex and the AG-UI protocol."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Ernesto Crespo", email = "ecrespo@gmail.com" }]
+requires-python = ">=3.11,<3.14"
+keywords = ["reflex", "ag-ui", "agents", "llm", "chat", "pydantic-ai", "langgraph"]
+classifiers = [
+    "Development Status :: 2 - Pre-Alpha",
+    "Framework :: AsyncIO",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Typing :: Typed",
+]
+# Ranges per TD DD-001 (verified on PyPI, 2026-10-30).
+dependencies = [
+    "reflex>=0.10.1,<0.11",
+    "ag-ui-protocol>=1.0.0,<2",
+    "httpx>=0.28,<1",
+    "pydantic>=2.11.2,<3",
+    "jsonpatch>=1.33,<2",
+]
+
+[project.optional-dependencies]
+pydantic-ai = ["pydantic-ai-slim[ag-ui,anthropic,openai]>=2.64,<3"]
+langgraph = ["ag-ui-langgraph[fastapi]>=0.0.47,<0.1", "langgraph>=1.2,<2"]
+all = ["reflex-agentkit[pydantic-ai,langgraph]"]
+
+[project.urls]
+Homepage = "https://github.com/ecrespo/reflex-agentkit"
+Repository = "https://github.com/ecrespo/reflex-agentkit"
+Issues = "https://github.com/ecrespo/reflex-agentkit/issues"
+Changelog = "https://github.com/ecrespo/reflex-agentkit/blob/main/CHANGELOG.md"
+
+[dependency-groups]
+test = ["pytest>=8.3", "pytest-asyncio>=1.0", "pytest-cov>=6.0", "hypothesis>=6.120", "uvicorn>=0.34"]
+lint = ["ruff>=0.11", "mypy>=1.15"]
+docs = ["mkdocs-material>=9.6"]
+redis = ["redis>=5.2"]
+dev = [{ include-group = "test" }, { include-group = "lint" }, { include-group = "docs" }]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.version]
+path = "src/reflex_agentkit/__init__.py"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/reflex_agentkit"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/reflex_agentkit", "tests", "README.md", "LICENSE", "CHANGELOG.md"]
+
+[tool.uv]
+default-groups = ["dev"]
+
+[tool.uv.workspace]
+members = ["examples/*"]

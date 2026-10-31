@@ -221,3 +221,9 @@ __marimo__/
 
 # JetBrains
 .idea/
+
+# reflex-agentkit
+.venv/
+.web/
+dist/
+.coverage

@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -198,7 +198,7 @@ Reflex backend worker (one asyncio loop)
 |---|---|---|
 | Non-2xx response | `HttpAGUIClient` → `AgentHTTPError` | `error`, `AGENT_HTTP_ERROR`; partial content kept |
 | Read timeout, EOF, wrong content type, connect error | `HttpAGUIClient` → `AgentStreamError` | `error`, `AGENT_STREAM_ERROR` |
-| In-process agent raises, or `create_client()` fails | `AgentStreamError(reason="agent_raised")` from the pump task / exception in A.4 | `error`, `AGENT_EXCEPTION`; traceback logged |
+| In-process agent raises, or `create_client()` fails | `AgentStreamError(reason="agent_raised")` from the pump task / exception in A.4 | `error`, `AGENT_EXCEPTION`; exception type logged at ERROR, traceback at DEBUG (§5.3) |
 | `RUN_ERROR` | reducer | `error`, `AGENT_RUN_ERROR` |
 | EOF in-process without a terminal event | driver (iterator exhausted) | `error`, `AGENT_STREAM_ERROR` (REQ-004.4) |
 | Invalid event JSON or schema | client skips it + warning | run continues (REQ-012.3) |
@@ -472,8 +472,9 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 
 - Exceptions follow API §9.1.
 - Rule: **nothing escapes `_drive_run`**. Every exception maps to a status and an error
-  code in the final flush, and the traceback is logged at ERROR with the
-  `thread_id`/`run_id` context. `CancelledError` is handled as cancellation and not
+  code in the final flush. The failure is logged at ERROR with the `thread_id`/`run_id`
+  context, naming only the error code and the exception type; the traceback is logged at
+  DEBUG, because an agent's exception message may quote user content (REQ-027.2). `CancelledError` is handled as cancellation and not
   re-raised (the driver owns the task).
 - `ConfigurationError` is raised at import or startup time (`__init_subclass__`, adapter
   `__init__`, `client_tool` decoration), never mid-session.
@@ -645,3 +646,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.2 | 2026-10-31 | Ernesto Crespo (with Claude) | §8.4 item 4 refined while implementing T-004: on disconnect Reflex 0.10.1 cancels hydration and `on_load` chains only (spec drift rule). |
 | 1.3 | 2026-10-31 | Ernesto Crespo (with Claude) | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |
 | 1.4 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-1 resolved by the T-024 spike: handlers are tested through Reflex's `BaseStateEventProcessor` over an in-memory state manager; §8 updated. |
+| 1.5 | 2026-10-31 | Ernesto Crespo (with Claude) | §5.3 and Flow E: failures are logged at ERROR by error code and exception type only, with the traceback at DEBUG, so agent exception messages that quote user content never appear above DEBUG (REQ-027.2); found in T-026 (spec drift rule). |

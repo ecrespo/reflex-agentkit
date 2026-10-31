@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.6 |
+| **Version** | 1.7 |
 | **Date** | 2026-10-30 |
 | **PRD / API / TD** | [PRD v1.1](../prd/agentkit-v0.1.md) · [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md), all APPROVED |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.0 |
@@ -238,7 +238,7 @@ and does not change the API.
 | `RunStatus` | `idle`, `running`, `awaiting_input`, `cancelled`, `error` |
 | `ToolCallStatus` | `streaming`, `pending_approval`, `running`, `done`, `rejected`, `error` |
 | `ErrorCode` | `MESSAGE_TOO_LONG`, `AGENT_RUN_ERROR`, `AGENT_HTTP_ERROR`, `AGENT_STREAM_ERROR`, `AGENT_EXCEPTION`, `INVALID_EDITED_ARGS`, `SHARED_STATE_LOCKED`, `SHARED_STATE_INVALID`, `SHARED_STATE_PATCH_FAILED`, `CLIENT_TOOL_LOOP_LIMIT` |
-| `DiagnosticCode` | `UNKNOWN_EVENT_TYPE`, `INVALID_EVENT`, `IMPLICIT_MESSAGE`, `UNKNOWN_MESSAGE_ID`, `UNKNOWN_TOOL_CALL_ID`, `DUPLICATE_ID`, `STALE_RUN_EVENT`, `PATCH_FAILED`, `ARGS_TOO_LARGE`, `IGNORED_EVENT` |
+| `DiagnosticCode` | `UNKNOWN_EVENT_TYPE`, `INVALID_EVENT`, `IMPLICIT_MESSAGE`, `UNKNOWN_MESSAGE_ID`, `UNKNOWN_TOOL_CALL_ID`, `DUPLICATE_ID`, `STALE_RUN_EVENT`, `PATCH_FAILED`, `ARGS_TOO_LARGE`, `IGNORED_EVENT`. Commands reuse `IGNORED_EVENT` (level `warning`) for an interrupt response that is dropped because it exceeds 64 KiB serialized or is not JSON-encodable (TD §6). |
 
 `ErrorCode` values are their own names, uppercase (`ErrorCode.MESSAGE_TOO_LONG == "MESSAGE_TOO_LONG"`).
 The other enums use lowercase values as listed.
@@ -381,3 +381,4 @@ v0.2 persistence."
 | 1.4 | 2026-10-31 | §7.1 precise ingress rules for `MESSAGES_SNAPSHOT`, `REASONING_ENCRYPTED_VALUE` (AG-UI 1.0 `subtype`/`entity_id`; non-reasoning targets not retained in v0.1) and non-object `STATE_SNAPSHOT`; found in T-013 (spec drift rule). |
 | 1.5 | 2026-10-31 | §7.2 `pending_interrupt` selects interrupts without a linked tool call (an approval for an unknown call would otherwise never be shown and the run would stay paused); found in T-014 (spec drift rule). |
 | 1.6 | 2026-10-31 | §3.10 new internal field `resume`: `begin_run` captures the resume entries before clearing the interrupt bookkeeping, because the driver builds `RunAgentInput` after `begin_run`. When the last open interrupt is answered, the command leaves `run_status = idle` (INV-4) until the handler calls `begin_run` under the same lock. Found in T-015 (spec drift rule). |
+| 1.7 | 2026-10-31 | §5 an oversized or non-JSON interrupt response is reported as an `IGNORED_EVENT` warning (no new diagnostic code); found in T-015 (spec drift rule). |

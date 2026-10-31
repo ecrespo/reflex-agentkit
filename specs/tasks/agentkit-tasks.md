@@ -538,7 +538,7 @@
   `requires_approval` tool ends its run with an interrupt outcome). With `TestModel` and a text reply, the
   events stream starts with `RUN_STARTED` and ends with `RUN_FINISHED`.
 
-### T-034 · PydanticAI integration: approvals and client tools `[ ]`
+### T-034 · PydanticAI integration: approvals and client tools `[x] 2026-10-31`
 - **What:** end-to-end through `InProcessAGUIClient` + reducer + commands +
   `RunInputBuilder` with `TestModel(call_tools=[...])`:
   - approve (the tool runs);

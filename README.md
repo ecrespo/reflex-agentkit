@@ -6,8 +6,9 @@ AG-UI-compatible agent. The production UI layer your agent was missing — no Ty
 no Streamlit.
 
 > **Status: pre-alpha, under active development.** Nothing is published on PyPI yet. The
-> pure core is implemented and tested; the Reflex state engine, the components and the
-> adapters are not. The API below marked *planned* does not exist yet.
+> pure core and the agent clients are implemented and tested; the Reflex state engine,
+> the components and the adapters are not. The API below marked *planned* does not exist
+> yet.
 
 ## Progress
 
@@ -18,8 +19,8 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 |---|---|---|
 | WP0 — Foundation | Packaging (uv, hatchling), lint, types, tests, CI | ✅ done |
 | WP1 — Pure core | Models, reducer, commands, client tools, `RunInputBuilder`, property tests | ✅ done |
-| WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | 🚧 in progress |
-| WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation | ⏳ planned |
+| WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | ✅ done |
+| WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation | 🚧 next |
 | WP4+ — Adapters, components, examples | PydanticAI and LangGraph adapters, chat components, quickstart, docs | ⏳ planned |
 
 ## What works today: `reflex_agentkit.core`
@@ -39,6 +40,12 @@ is the only way agent events change the conversation state.
   results.
 - **`RunInputBuilder`**: turns the conversation into an AG-UI `RunAgentInput` (full
   history, encrypted reasoning, edited tool args, shared state, tools, resume entries).
+- **Agent clients**: `HttpAGUIClient` talks to any AG-UI server over HTTP + SSE.
+  `InProcessAGUIClient` runs an agent object (anything with
+  `run(run_input) -> AsyncIterator[event]`) in the same event loop. Both yield validated
+  events, skip invalid ones with a log record, raise typed `AgentHTTPError` /
+  `AgentStreamError` on transport failures, and close the upstream when the consumer is
+  cancelled. Headers such as API keys are never logged or put in error messages.
 
 ```python
 from reflex_agentkit.core import ConversationState, RunInputBuilder, client_tool
@@ -73,6 +80,37 @@ print(conv.run_status)                        # awaiting_input
 conv = apply_approval(conv, "c1", {"city": "Porto"})
 conv = begin_run(conv, config=config, resume=True)
 print(RunInputBuilder().build(conv).resume)   # [ResumeEntry(..., payload={'approved': True, 'editedArgs': {...}})]
+```
+
+Streaming a run from an AG-UI server:
+
+```python
+import asyncio
+import os
+
+from reflex_agentkit import HttpAGUIClient
+from reflex_agentkit.core import ConversationState, RunInputBuilder
+from reflex_agentkit.core.commands import begin_run
+from reflex_agentkit.core.models import ReducerConfig
+from reflex_agentkit.core.reducer import reduce
+
+
+async def main() -> None:
+    client = HttpAGUIClient(
+        "http://localhost:8000/agent",
+        headers=lambda: {"Authorization": f"Bearer {os.environ['AGENT_TOKEN']}"},
+    )
+    config = ReducerConfig()
+    conv = begin_run(ConversationState.initial(config), config=config, user_text="Hello!")
+    try:
+        async for event in client.stream(RunInputBuilder().build(conv)):
+            conv = reduce(conv, event)
+    finally:
+        await client.aclose()
+    print(conv.run_status, conv.messages[-1].content)
+
+
+asyncio.run(main())
 ```
 
 ## Planned usage (not available yet)

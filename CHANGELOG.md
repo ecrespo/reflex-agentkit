@@ -27,5 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `RunInputBuilder`: builds `RunAgentInput` from the conversation (full history,
   encrypted reasoning before its assistant message, edited tool arguments, shared state,
   client tools, resume entries).
+- Agent clients: the runtime-checkable `AGUIAgent` / `AgentClient` protocols and
+  `AgentSource`; `HttpAGUIClient` (AG-UI over HTTP + SSE, static or per-run headers that
+  are never logged, read timeout, typed `AgentHTTPError` / `AgentStreamError`, upstream
+  closed on cancel) and `InProcessAGUIClient` (runs an agent object in the event loop,
+  cancellation reaches the agent); an incremental SSE parser; invalid events are skipped
+  with a log record.
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.

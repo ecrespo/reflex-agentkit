@@ -341,10 +341,17 @@ class AgentState(rx.State, mixin=True):
         )
 
     def _conversation(self) -> ConversationState:
-        """The stored conversation, created on first use."""
+        """The stored conversation, created on first use.
+
+        Read through a background handler's ``StateProxy``, Reflex wraps the value in a
+        mutable proxy whose fields (``shared_state``) are proxies too; those cannot be
+        serialized into ``RunAgentInput``. The conversation is immutable, so the plain
+        object is returned.
+        """
         if self._conv is None:
             self._conv = ConversationState.initial(self.__class__._reducer_config())
-        return self._conv
+        conv: ConversationState = getattr(self._conv, "__wrapped__", self._conv)
+        return conv
 
     def _publish(self, conv: ConversationState) -> None:
         """Store ``conv`` and project it onto the public vars (Flow A.7)."""

@@ -314,6 +314,8 @@ async def test_REQ_017_1_app_writes_reach_the_next_run(reflex_harness: ReflexHar
     assert (await reflex_harness.state("tok", cls)).shared_state == {"count": 2}
     await reflex_harness.call("tok", cls, "send_message", text="go")
     assert client.inputs[0].state == {"count": 2}
+    assert type(client.inputs[0].state) is dict  # not a Reflex proxy
+    client.inputs[0].model_dump_json()  # what HttpAGUIClient sends must serialize
 
 
 async def test_REQ_017_2_app_write_while_running_is_locked(reflex_harness: ReflexHarness) -> None:

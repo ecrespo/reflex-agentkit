@@ -44,7 +44,7 @@ def test_REQ_012_3_event_objects_are_revalidated() -> None:
     """API §7.2: objects built without validation are checked too."""
     good = TextMessageContentEvent(message_id="m", delta="hi")
     assert validate_event(good) == good
-    bad = TextMessageContentEvent.model_construct(message_id="m", delta="")
+    bad = TextMessageContentEvent.model_construct(delta="hi")  # no message_id
     assert validate_event(bad) is None
 
 

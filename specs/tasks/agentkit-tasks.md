@@ -323,7 +323,7 @@
 
 ## WP2 — Clients
 
-### T-019 · Client protocols · TF `[ ]`
+### T-019 · Client protocols · TF `[x] 2026-10-31`
 - **What:** `core/clients/base.py`: the `AGUIAgent` and `AgentClient` `Protocol`s
   (runtime-checkable) and `AgentSource`. Validated event decoding (`parse_event` reuse)
   with skip-and-warn.
@@ -333,7 +333,7 @@
 - **Done:** `isinstance(obj, AGUIAgent)` is true for a class that defines `run`.
   `uv run pytest -k REQ_021_1 -q` passes.
 
-### T-020 · SSE parser · TF `[P]` `[ ]`
+### T-020 · SSE parser · TF `[P]` `[x] 2026-10-31`
 - **What:** `core/clients/sse.py`: an incremental parser over byte or str chunks
   (multi-line `data:`, `event:`/`id:` ignored, comments, CRLF/LF, a frame split across
   chunks, a trailing frame without a blank line at EOF is discarded).

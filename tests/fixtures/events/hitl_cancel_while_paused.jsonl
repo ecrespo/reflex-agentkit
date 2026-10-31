@@ -1,0 +1,11 @@
+{"fixture": "hitl_cancel_while_paused", "reqs": ["REQ-015.2", "REQ-015.3"], "start": {"user_text": "book the hotel"}, "expect": {"run_status": "idle", "run_id": "$run2", "tool_calls": [{"id": "c1", "status": "rejected", "result": "cancelled"}], "interrupts": [], "answers": {}, "abandoned_interrupt_ids": [], "resume": [{"interrupt_id": "int-c1", "status": "cancelled", "payload": null}, {"interrupt_id": "i1", "status": "cancelled", "payload": null}], "messages.length": 3, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "book_hotel", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"city\": \"Lisbon\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "int-c1", "reason": "tool_call", "toolCallId": "c1"}, {"id": "i1", "reason": "human_input", "message": "Which room?"}]}}
+{"$command": "respond_to_interrupt", "payload": "suite"}
+{"$command": "cancel_run"}
+{"$command": "begin_run", "user_text": "never mind"}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run2"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run2"}

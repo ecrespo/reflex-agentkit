@@ -1,0 +1,12 @@
+{"fixture": "hitl_approve", "reqs": ["REQ-013.2", "REQ-013.5"], "start": {"user_text": "book the hotel"}, "expect": {"run_status": "idle", "run_id": "$run2", "tool_calls": [{"id": "c1", "status": "done", "result": "booked", "args": {"city": "Lisbon"}}], "interrupts": [], "answers": {}, "resume": [{"interrupt_id": "int-c1", "status": "resolved", "payload": {"approved": true}}], "messages.length": 4, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "book_hotel", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"city\": \"Lisbon\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "int-c1", "reason": "tool_call", "toolCallId": "c1"}]}}
+{"$command": "approve_tool", "call_id": "c1"}
+{"$command": "begin_run", "resume": true}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run2"}
+{"type": "TOOL_CALL_RESULT", "toolCallId": "c1", "messageId": "t1", "content": "booked"}
+{"type": "TEXT_MESSAGE_CHUNK", "messageId": "m2", "delta": "Booked!"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run2"}

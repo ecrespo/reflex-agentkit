@@ -1,0 +1,11 @@
+{"fixture": "hitl_reject", "reqs": ["REQ-013.4", "REQ-013.5"], "start": {"user_text": "book the hotel"}, "expect": {"run_status": "idle", "tool_calls": [{"id": "c1", "status": "rejected", "result": "Rejected by the user: too expensive"}], "resume": [{"interrupt_id": "int-c1", "status": "resolved", "payload": {"approved": false, "reason": "too expensive"}}], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "book_hotel", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"city\": \"Lisbon\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "int-c1", "reason": "tool_call", "toolCallId": "c1"}]}}
+{"$command": "reject_tool", "call_id": "c1", "reason": "too expensive"}
+{"$command": "begin_run", "resume": true}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run2"}
+{"type": "TEXT_MESSAGE_CHUNK", "messageId": "m2", "delta": "OK, I will not book it."}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run2"}

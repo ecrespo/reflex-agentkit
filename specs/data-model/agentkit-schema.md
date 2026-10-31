@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Date** | 2026-10-30 |
 | **PRD / API / TD** | [PRD v1.1](../prd/agentkit-v0.1.md) · [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md), all APPROVED |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.0 |
@@ -252,9 +252,9 @@ The other enums use lowercase values as listed.
 | `TextMessageStart/Content/End/Chunk` | `ChatMessage(role=assistant)`; a CHUNK without a known ID creates one |
 | `ToolCallStart/Args/End/Chunk` | `ToolCall`; the parent message's `tool_call_ids` is updated |
 | `ToolCallResultEvent` | `ToolCall.result`, `status=done`, and a new `ChatMessage(role=tool, tool_call_id=…)` (deduplicated by `message_id` if present). AG-UI 1.0 `content` may be a list of multimodal parts: v0.1 flattens it to text (text parts concatenated, other parts as `[<type>]` placeholders), so multimodal results are not re-sent to the agent. |
-| `StateSnapshot` / `StateDelta` | `shared_state` / `_patch.apply` (atomic) |
-| `MessagesSnapshot` | rebuild `messages` from AG-UI messages (§7.3); keep `ToolCall` records whose IDs still appear, drop the others; rebuild the indexes |
-| `ReasoningMessage*`, `ReasoningEncryptedValue` | `ReasoningRecord` |
+| `StateSnapshot` / `StateDelta` | `shared_state` / `_patch.apply` (atomic). A failed delta sets `shared_state_stale`, `error_code=SHARED_STATE_PATCH_FAILED` and a `PATCH_FAILED` warning. A snapshot that is not a JSON object is rejected the same way with `SHARED_STATE_INVALID` and an `INVALID_EVENT` warning. |
+| `MessagesSnapshot` | rebuild `messages` from AG-UI messages (§7.3); keep `ToolCall` records whose IDs still appear, drop the others, and create records (args parsed, result from the matching `tool` message) for calls known only from the snapshot; `reasoning` messages become `ReasoningRecord`s linked like streamed ones, and streamed records of surviving assistant messages are kept; `activity` messages are skipped; repeated IDs (`DUPLICATE_ID`) and `tool` messages for unknown calls (`UNKNOWN_TOOL_CALL_ID`) are dropped with warnings; rebuild the indexes |
+| `ReasoningMessage*`, `ReasoningEncryptedValue` | `ReasoningRecord`. `ReasoningEncryptedValue` (AG-UI 1.0: `subtype` ∈ {`message`, `tool-call`}, `entity_id`) is kept only when it targets a reasoning message; values for tool calls or other messages are not retained in v0.1 (`IGNORED_EVENT`, debug). |
 | `CustomEvent` | `CustomEventRecord` (ring) |
 | `StepStarted/Finished` | `current_step` |
 | `RunFinished(outcome)` | `success`/absent → `idle`, **unless** client-tool calls are awaiting execution (calls with `is_client_tool` in `running`, or the IDs in `outcome.pending_tool_call_ids` when present), in which case `running` is kept for the client-tool round (PRD REQ-004.1, REQ-018.2); `interrupt` → `interrupts` + `awaiting_input` (and the matching tool calls → `pending_approval`); `cancelled` → `cancelled` |
@@ -377,3 +377,4 @@ v0.2 persistence."
 | 1.1 | 2026-10-30 | Analyze fixes: cancel-while-paused clears interrupts (A-05); INV-8 one-directional (A-07); `AGENT_EXCEPTION` (A-06); RUN_FINISHED keeps `running` for client-tool rounds (A-02). |
 | 1.2 | 2026-10-31 | §8 tolerant pickling via `TolerantPickle.__reduce__` + `_from_state` instead of `__setstate__` (frozen slots dataclasses override a mixin's `__setstate__`); found in T-006 (spec drift rule). |
 | 1.3 | 2026-10-31 | §7.1 `TOOL_CALL_RESULT` multimodal content is flattened to text in v0.1; found in T-012 (spec drift rule). |
+| 1.4 | 2026-10-31 | §7.1 precise ingress rules for `MESSAGES_SNAPSHOT`, `REASONING_ENCRYPTED_VALUE` (AG-UI 1.0 `subtype`/`entity_id`; non-reasoning targets not retained in v0.1) and non-object `STATE_SNAPSHOT`; found in T-013 (spec drift rule). |

@@ -1,0 +1,9 @@
+[project]
+name = "pydantic-ai-dojo"
+version = "0.1.0"
+description = "The AG-UI Dojo demos built with reflex-agentkit and PydanticAI."
+requires-python = ">=3.11"
+dependencies = ["examples-shared[pydantic-ai]"]
+
+[tool.uv.sources]
+examples-shared = { workspace = true }

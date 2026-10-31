@@ -8,7 +8,7 @@ from types import ModuleType
 from typing import Any
 
 import pytest
-from dojo import DEMOS, ROOT, compile_offline, counted_lines
+from helpers.dojo import DEMOS, ROOT, compile_offline, counted_lines
 from helpers.reflex_harness import ReflexHarness
 
 from reflex_agentkit.core.models import RunStatus, ToolCallStatus

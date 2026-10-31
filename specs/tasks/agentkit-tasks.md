@@ -719,7 +719,9 @@
 - **Depends on:** T-040
 - **Done:** unit tests cover the three branches without network.
 
-### T-047 · `examples/pydantic_ai_dojo` (5 demos) `[ ]`
+### T-047 · `examples/pydantic_ai_dojo` (5 demos) `[x] 2026-10-31`
+> **Note:** the smoke compile, the line-count test and an offline driven turn per demo pass. The manual runs with Claude and with `AGENTKIT_MODEL=ollama:<model>` need a key and a local model; they are left to the maintainer.
+
 - **What:** a multi-page Reflex app, one page per demo (agentic chat, backend tool
   rendering with a `tool_renderers` weather card, human-in-the-loop, shared state with
   `shared_state_model` + panel, tool-based generative UI with a client tool + renderer),

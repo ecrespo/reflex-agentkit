@@ -107,3 +107,6 @@ jobs:
       - name: Compile the quickstart with no network or keys (TD OQ-2)
         working-directory: examples/quickstart
         run: uv run --package quickstart reflex compile --dry --no-rich
+      - name: Compile the PydanticAI Dojo with no network or keys
+        working-directory: examples/pydantic_ai_dojo
+        run: uv run --package pydantic-ai-dojo reflex compile --dry --no-rich

@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.10 |
+| **Version** | 1.11 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -222,6 +222,7 @@ Reflex backend worker (one asyncio loop)
 | **extra `pydantic-ai`** | `pydantic-ai-slim[ag-ui,anthropic,openai]>=2.64,<3` | 2.64.0 | `anthropic`: Claude is the default model. `openai`: the OpenAI-compatible provider used for **Ollama**. The floor is the version the interrupt contract was verified on. |
 | **extra `langgraph`** | `ag-ui-langgraph[fastapi]>=0.0.47,<0.1`, `langgraph>=1.2,<2` | 0.0.47 / 1.2.19 | `[fastapi]` is required: ag-ui-langgraph's `__init__` imports `fastapi` unconditionally although it declares it optional (an upstream bug, verified; we will report it). |
 | **extra `all`** | both of the above | — | |
+| *examples only* (`examples/_shared`, not the library) | `langchain-anthropic>=1.7.7,<2`, `langchain-openai>=1.7.3,<2` | 1.7.7 / 1.7.3 (2026-10-27 / 2026-10-26) | The LangGraph Dojo's chat models: Claude by default, Ollama through its OpenAI-compatible API (the same split as the `pydantic-ai` extra). Never a dependency of `reflex-agentkit` itself. Added in T-046. |
 
 **Dev group** (uv `[dependency-groups]`): `pytest`, `pytest-asyncio`, `pytest-cov`,
 `hypothesis`, `mypy`, `ruff`, `uvicorn` (fake SSE server, DD-010), `redis` (T-redis), `mkdocs-material`.
@@ -677,3 +678,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.8 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-2 resolved by T-040: examples compile in CI with `reflex compile --dry` and the `AGENTKIT_MODEL=test` swap in `rxconfig.py`. |
 | 1.9 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: `run()` uses a per-run `clone()` (upstream keeps per-run state on the instance) and `STATE_SNAPSHOT` drops the `messages` and `tools` keys. Found in T-042 (spec drift rule). |
 | 1.10 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: the legacy-interrupt mechanics (synthetic stateless IDs, one interrupt per pause, resume through `forwarded_props.command.resume`). §11 OQ-4: the upstream issue draft exists. Found in T-045. |
+| 1.11 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-001: example-only dependencies for the LangGraph Dojo's chat models (`langchain-anthropic`, `langchain-openai`), verified on PyPI. Added in T-046. |

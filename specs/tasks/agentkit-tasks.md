@@ -516,7 +516,7 @@
 
 ## WP4 — PydanticAI adapter
 
-### T-032 · Adapter import guard `[P]` `[ ]`
+### T-032 · Adapter import guard `[P]` `[x] 2026-10-31`
 - **What:** `adapters/_require.py::require(extra, module)`, which raises
   `AdapterNotInstalledError` with the exact API §7.7 message. Both adapter modules call it
   at import.
@@ -526,7 +526,7 @@
 - **Done:** a test that monkeypatches `sys.modules["pydantic_ai"] = None` asserts the
   error type and message.
 
-### T-033 · `PydanticAIAgent` · TF `[ ]`
+### T-033 · `PydanticAIAgent` · TF `[x] 2026-10-31`
 - **What:** `adapters/pydantic_ai.py`, per API §7.5 / TD DD-011: `run()` →
   `AGUIAdapter(agent, run_input).run_stream(output_type=…injected…, deps=…, **run_kwargs)`;
   `deps` and `deps_factory` are mutually exclusive.

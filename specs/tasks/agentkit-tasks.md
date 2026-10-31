@@ -779,7 +779,9 @@
 - **Done:** `uv run mkdocs build --strict` passes. The README quickstart test still
   passes.
 
-### T-051 · Upstream integration drafts `[P]` `[ ]`
+### T-051 · Upstream integration drafts `[P]` `[x] 2026-10-31`
+> **Note:** the three drafts follow the target files as they are today: the **Clients** table of the `ag-ui-protocol/ag-ui` README, a subsection of `docs/ui/ag-ui.md` in `pydantic/pydantic-ai`, and a Mintlify page under `src/oss/langgraph/frontend/` plus its `src/docs.json` entry in `langchain-ai/docs`. Each has a "How to submit" box (target repo, path, PR title, when). Submitting them is left to the maintainer, after `0.1.0` is on PyPI.
+
 - **What:** `docs/integrations/`: an AG-UI integrations-table entry (Python/Reflex
   client), a PydanticAI "UI with Reflex" page, a LangGraph "frontend with Reflex" page,
   each in the target repo's format, with links to the examples.

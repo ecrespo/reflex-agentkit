@@ -49,6 +49,14 @@ _CONFIG_NAMES = (
     "custom_events_limit",
     "max_client_tool_rounds",
 )
+_NOT_HANDLERS = (
+    "create_client",
+    "prepare_run_input",
+    "on_custom_event",
+    "on_run_end",
+    "typed_shared_state",
+)
+"""Public methods the browser must never call (TD §6.1, API §4.4)."""
 _CAN_SEND = frozenset({RunStatus.IDLE, RunStatus.CANCELLED, RunStatus.ERROR})
 _logger = get_logger("state.agent_state")
 
@@ -100,6 +108,7 @@ class AgentState(rx.State, mixin=True):
         # Reflex's metaclass consumes the ``mixin`` keyword and records it in ``_mixin``.
         if not cls.__dict__.get("_mixin", False):
             _validate(cls)
+        _hide_from_browser(cls)
         super().__init_subclass__(**kwargs)
 
     # --- computed vars (API §4.2) ----------------------------------------------------------
@@ -415,6 +424,19 @@ def _is_class_var(annotation: object) -> bool:
     return annotation is ClassVar or typing.get_origin(annotation) is ClassVar
 
 
+def _hide_from_browser(cls: type) -> None:
+    """Keep the hooks defined in ``cls`` out of Reflex's event-handler registration.
+
+    Reflex registers every public method of a state as an event handler the browser can
+    call with any arguments, and skips functions flagged ``__override_base_method__``
+    (TD §6.1). The flag goes on ``AgentState``'s own hooks and on every override.
+    """
+    for name in _NOT_HANDLERS:
+        fn = cls.__dict__.get(name)
+        if hasattr(fn, "__code__"):
+            fn.__override_base_method__ = True  # type: ignore[union-attr]
+
+
 def _validate(cls: type[AgentState]) -> None:
     """Raise ``ConfigurationError`` naming the attribute (API §4.1, DD-006)."""
     name = cls.__name__
@@ -466,3 +488,6 @@ def _check_tools(name: str, tools: object) -> None:
         if tool.name in seen:
             raise ConfigurationError(f"{name}.client_tools has two tools named {tool.name!r}")
         seen.add(tool.name)
+
+
+_hide_from_browser(AgentState)

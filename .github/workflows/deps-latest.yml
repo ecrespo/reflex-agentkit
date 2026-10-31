@@ -1,0 +1,58 @@
+name: Latest dependencies
+
+# Weekly early warning (T-049, DD-001): resolve every dependency to its newest version
+# allowed by the ranges in pyproject.toml, in a throwaway copy of the lock, and run the
+# tests. It never changes the committed uv.lock and never blocks a merge; a failure
+# opens (or updates) an issue so the maintainer can decide whether to pin or adapt.
+
+on:
+  schedule:
+    - cron: "17 6 * * 1"  # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  latest:
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    permissions:
+      contents: read
+      issues: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.13"
+      - name: Upgrade the lock in a temporary copy
+        run: |
+          workdir="$(mktemp -d)"
+          cp -r . "${workdir}/repo"
+          echo "WORKDIR=${workdir}/repo" >> "${GITHUB_ENV}"
+          cd "${workdir}/repo"
+          uv lock --upgrade
+          git diff --stat -- uv.lock || true
+      - name: Tests against the newest versions
+        id: tests
+        working-directory: ${{ env.WORKDIR }}
+        run: |
+          set -o pipefail
+          uv sync --all-extras --all-packages
+          uv run pytest -q 2>&1 | tee "${RUNNER_TEMP}/pytest.log"
+          uv run python scripts/check_gated_coverage.py
+      - name: Open or update the tracking issue
+        if: failure()
+        run: |
+          title="Tests fail with the latest dependency versions"
+          body="$(printf 'The weekly [latest-dependencies run](%s/%s/actions/runs/%s) failed.\n\nTail of the test log:\n\n```text\n%s\n```\n' \
+            "${GITHUB_SERVER_URL}" "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}" \
+            "$(tail -n 40 "${RUNNER_TEMP}/pytest.log" 2>/dev/null || echo 'no log')")"
+          number="$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number')"
+          if [ -n "${number}" ]; then
+            gh issue comment "${number}" --body "${body}"
+          else
+            gh issue create --title "${title}" --body "${body}"
+          fi

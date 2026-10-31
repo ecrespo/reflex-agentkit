@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.12 |
+| **Version** | 1.13 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -612,9 +612,12 @@ and trusted publishing).
 
 ### 9.1 Deployment strategy
 
-The library ships to PyPI as `0.1.0` on a `v0.1.0` tag. Before that, pre-releases
-(`0.1.0a1`, `0.1.0rc1`, …) go to PyPI too, with the same workflow and the same reviewed
-`pypi` environment; there is no TestPyPI step (maintainer decision, 2026-10-31). Installers
+Releases are automatic (maintainer decision, 2026-10-31). When a push to `main` carries a
+publishable `__version__` (not `.dev`) with no `v<version>` tag yet, `release.yml` runs the
+tests, builds, publishes to PyPI through trusted publishing in the `pypi` environment, and
+creates the tag and a GitHub Release. A manually pushed `v*` tag that matches
+`__version__` publishes the same way. `0.1.0` ships like this; before it, pre-releases
+(`0.1.0a1`, `0.1.0rc1`, …) go to PyPI too, and there is no TestPyPI step. Installers
 skip pre-releases unless they are pinned exactly. A fresh-environment walkthrough of the
 quickstart follows each one (PRD §4.2 indicator). Upstream PR drafts (REQ-033.2) are submitted
 after `0.1.0` is on PyPI.
@@ -682,3 +685,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.10 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: the legacy-interrupt mechanics (synthetic stateless IDs, one interrupt per pause, resume through `forwarded_props.command.resume`). §11 OQ-4: the upstream issue draft exists. Found in T-045. |
 | 1.11 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-001: example-only dependencies for the LangGraph Dojo's chat models (`langchain-anthropic`, `langchain-openai`), verified on PyPI. Added in T-046. |
 | 1.12 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: no TestPyPI; pre-releases and the final release go to PyPI through the `pypi` environment (maintainer decision). |
+| 1.13 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: releases are automatic on a push to `main` with a new publishable version (maintainer decision). |

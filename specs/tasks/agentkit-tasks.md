@@ -635,14 +635,15 @@
   streams, shows `get_weather`, and opens the approval dialog for `book_hotel`.
 
 ### T-041 · Release workflow and `0.1.0a1` on PyPI `[!]`
-> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). No TestPyPI (maintainer decision, Plan v1.2). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publisher on PyPI and the GitHub environment `pypi` (it does not exist yet). Then push the tag `v0.1.0a1` and run the walkthrough against PyPI.
+> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). No TestPyPI (maintainer decision, Plan v1.2). Releases are automatic (Plan v1.3). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publisher on PyPI (owner `ecrespo`, repository `reflex-agentkit`, workflow `release.yml`, environment `pypi`) and the GitHub environment `pypi` (it does not exist yet). Then merging `develop` (at `0.1.0a1`) into `main` publishes and tags it; run the walkthrough against PyPI.
 
 - **What:** `.github/workflows/release.yml`:
-  - on tag `v*`: `uv build` → `uv publish --trusted-publishing always`;
-  - every tag, pre-release or final, goes to PyPI through the `pypi` environment (with
-    required reviewers).
+  - on a push to `main` whose `__version__` is publishable (not `.dev`) and untagged, and on
+    a manually pushed `v*` tag: tests → `uv build` → `uv publish --trusted-publishing always`
+    → tag `v<version>` and GitHub Release (marked pre-release for `a`/`b`/`rc`);
+  - every version, pre-release or final, goes to PyPI through the `pypi` environment.
 
-  Bump to `0.1.0a1`, add a CHANGELOG entry, tag. Then the fresh-env walkthrough from Plan
+  Bump to `0.1.0a1`, add a CHANGELOG entry. Then the fresh-env walkthrough from Plan
   WP5 "Done", with the exact `==0.1.0a1` pin from PyPI.
 - **REQ:** REQ-032.2 · PRD §4.2
 - **Files:** `.github/workflows/release.yml`, `src/reflex_agentkit/__init__.py`, `CHANGELOG.md`
@@ -783,9 +784,9 @@
   PR title).
 
 ### T-052 · `0.1.0rc1` → `v0.1.0` `[ ]`
-- **What:** bump to `0.1.0rc1` → PyPI (pre-release) → fresh-env walkthrough (the PydanticAI and
+- **What:** bump to `0.1.0rc1` and merge to `main` (published automatically) → fresh-env walkthrough (the PydanticAI and
   LangGraph dojos plus the quickstart) → fix anything found → CHANGELOG `[0.1.0]` → bump
-  to `0.1.0` → tag `v0.1.0` → approve the `pypi` environment → verify
+  to `0.1.0` → merge to `main` (published and tagged automatically) → verify
   `uv add reflex-agentkit` from PyPI.
 - **REQ:** REQ-032.2 · PRD §4.1
 - **Files:** `src/reflex_agentkit/__init__.py`, `CHANGELOG.md`

@@ -676,7 +676,7 @@
 - **Depends on:** T-042
 - **Done:** unit tests for the four resume shapes pass.
 
-### T-044 · LangGraph integration: interrupts and approvals `[ ]`
+### T-044 · LangGraph integration: interrupts and approvals `[x] 2026-10-31`
 - **What:** a scripted graph (`StateGraph` + `MemorySaver` + a fake chat model that emits
   a tool call) through `InProcessAGUIClient`:
   - a generic `interrupt()` answered with `respond_to_interrupt`;

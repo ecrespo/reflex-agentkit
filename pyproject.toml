@@ -114,6 +114,10 @@ pythonpath = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 xfail_strict = true
+filterwarnings = [
+    # ag-ui-langgraph 0.0.47 calls a LangGraph 1.x deprecated API on every run (upstream).
+    "ignore:`get_config_jsonschema` is deprecated:DeprecationWarning",
+]
 markers = [
     "slow: long-running tests",
     "redis: needs a Redis server (Docker container)",

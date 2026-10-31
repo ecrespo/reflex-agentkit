@@ -55,8 +55,10 @@ def _approval_graph() -> LangGraphAGUIAgent:
         return {"messages": [await model.ainvoke(state["messages"])]}
 
     def tools(state: MessagesState) -> dict[str, Any]:
-        call = state["messages"][-1].tool_calls[0]  # type: ignore[attr-defined]
-        decision = request_tool_approval(call["id"], call["name"], call["args"])
+        last = state["messages"][-1]
+        assert isinstance(last, AIMessage)
+        call = last.tool_calls[0]
+        decision = request_tool_approval(str(call["id"]), call["name"], call["args"])
         decisions.append(decision)
         if decision.approved:
             content = f"Booked {decision.args['city']}"
@@ -206,6 +208,7 @@ async def test_REQ_014_3_two_simultaneous_interrupts_each_get_their_answer(
         pending = state.pending_interrupt
         assert pending is not None
         assert (pending.queue_position, pending.queue_size) == (expected_position, 2)
+        assert isinstance(pending.payload, dict)
         node = pending.payload["node"]
         await reflex_harness.call(
             session, TwoQuestionsState, "respond_to_interrupt", payload=f"{node} answer"

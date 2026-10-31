@@ -819,10 +819,23 @@ def _reasoning_encrypted(
 def _snapshot_call(
     conv: ConversationState, tool_call: Any, parent_id: str, results: dict[str, Any]
 ) -> ToolCall:
-    """A record for a call listed in the snapshot: the existing one, or a new one."""
+    """A record for a call listed in the snapshot: the existing one, or a new one.
+
+    A kept record with no result yet takes the one from the snapshot's ``tool`` message,
+    as ``TOOL_CALL_RESULT`` would: ag-ui-langgraph sends a tool node's result only here
+    (DM v1.10). ``rejected`` and ``error`` stay terminal.
+    """
     existing = _get_call(conv, tool_call.id)
+    result = results.get(tool_call.id)
     if existing is not None:
-        return existing
+        if result is None or existing.result is not None:
+            return existing
+        status: ToolCallStatus
+        if existing.status in (ToolCallStatus.REJECTED, ToolCallStatus.ERROR):
+            status = existing.status
+        else:
+            status = ToolCallStatus.ERROR if result.error else ToolCallStatus.DONE
+        return dataclasses.replace(existing, status=status, result=_content_text(result.content))
     name = tool_call.function.name
     call = _end_call(
         ToolCall(
@@ -833,7 +846,6 @@ def _snapshot_call(
             is_client_tool=name in conv.config.client_tool_names,
         )
     )
-    result = results.get(tool_call.id)
     if result is not None:
         status = ToolCallStatus.ERROR if result.error else ToolCallStatus.DONE
         call = dataclasses.replace(call, status=status, result=_content_text(result.content))
@@ -843,8 +855,9 @@ def _snapshot_call(
 def _messages_snapshot(conv: ConversationState, event: MessagesSnapshotEvent) -> ConversationState:
     """REQ-010.4, DM §7.1: rebuild ``messages`` from the snapshot.
 
-    Tool calls still listed keep their records (and statuses); others are dropped; calls
-    known only from the snapshot get new records. Reasoning messages become records
+    Tool calls still listed keep their records (and statuses), taking a missing result
+    from their ``tool`` message; others are dropped; calls known only from the snapshot get
+    new records. Reasoning messages become records
     linked to the next assistant message (else the previous one); streamed reasoning of
     surviving assistant messages is kept, so encrypted values are not lost. Activity
     messages are not rendered. Repeated IDs and tool messages for unknown calls are

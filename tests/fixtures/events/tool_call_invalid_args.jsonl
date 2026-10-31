@@ -1,0 +1,6 @@
+{"fixture": "tool_call_invalid_args", "reqs": ["REQ-009.7"], "start": {"user_text": "go"}, "expect": {"run_status": "idle", "tool_calls": [{"id": "c1", "status": "error", "args_text": "{\"city\": ", "args": null, "result": "Invalid tool arguments: the arguments are not a valid JSON object."}], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "get_weather", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"city\": "}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

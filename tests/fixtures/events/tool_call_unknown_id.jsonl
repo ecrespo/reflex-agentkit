@@ -1,0 +1,6 @@
+{"fixture": "tool_call_unknown_id", "reqs": ["REQ-009.6"], "start": {"user_text": "go"}, "expect": {"run_status": "idle", "tool_calls.length": 0, "messages.length": 1, "diagnostics.codes": ["UNKNOWN_TOOL_CALL_ID", "UNKNOWN_TOOL_CALL_ID", "UNKNOWN_TOOL_CALL_ID"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "ghost", "delta": "{}"}
+{"type": "TOOL_CALL_END", "toolCallId": "ghost"}
+{"type": "TOOL_CALL_RESULT", "toolCallId": "ghost", "messageId": "t1", "content": "x"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

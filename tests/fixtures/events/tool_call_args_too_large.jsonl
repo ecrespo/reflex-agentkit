@@ -1,0 +1,8 @@
+{"fixture": "tool_call_args_too_large", "reqs": ["REQ-009.2"], "config": {"max_args_bytes": 16}, "start": {"user_text": "go"}, "expect": {"run_status": "idle", "tool_calls": [{"id": "c1", "status": "error", "result": "Invalid tool arguments: the arguments exceed 16 bytes.", "args": null}], "dirty_tool_args": [], "diagnostics.codes": ["ARGS_TOO_LARGE"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "summarize", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"text\": \"0123"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "456789\"}"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "ignored"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

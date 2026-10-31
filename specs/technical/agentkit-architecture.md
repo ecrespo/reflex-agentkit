@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -565,7 +565,11 @@ These pin the facts verified in this document, so an upgrade that breaks them fa
    fields. Our `_build_command_from_agui_resume` override is called and yields the native
    multi-resume.
 4. Reflex: an unannotated subclass attribute becomes a var, and a `ClassVar` does not
-   (this documents DD-006). Reflex does not cancel background tasks on disconnect.
+   (this documents DD-006). Reflex does not cancel background tasks on disconnect: in
+   0.10.1, `BaseStateEventProcessor._on_disconnect` cancels only hydration and unfinished
+   `on_load` chains, so a run started from a user event (`send_message`) keeps going. A
+   run started *from* an `on_load` handler would be cancelled with that chain; the docs
+   tell users not to start runs there.
 
 ### 8.5 CI jobs (GitHub Actions)
 
@@ -636,3 +640,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 |---|---|---|---|
 | 1.0 | 2026-10-30 | Ernesto Crespo (with Claude) | Initial version |
 | 1.1 | 2026-10-30 | Ernesto Crespo (with Claude) | Analyze fixes: lazy top-level re-exports (A-01); gates on core and state (A-04); `AGENT_EXCEPTION` mapping (A-06); frontend-tool termination fact added to the contract tests (A-18). |
+| 1.2 | 2026-10-31 | Ernesto Crespo (with Claude) | §8.4 item 4 refined while implementing T-004: on disconnect Reflex 0.10.1 cancels hydration and `on_load` chains only (spec drift rule). |

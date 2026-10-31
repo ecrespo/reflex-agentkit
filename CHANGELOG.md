@@ -66,6 +66,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   CI smoke job (`reflex compile --dry` with PydanticAI's `TestModel`).
 - Release workflow: a `v*` tag builds and publishes through trusted publishing, with
   pre-release tags going to TestPyPI and final tags to PyPI.
+- `reflex_agentkit.adapters.langgraph`: `LangGraphAGUIAgent` runs a compiled LangGraph
+  graph through the official ag-ui-langgraph integration with standard interrupts. It
+  requires a checkpointer, serves every session from one instance, keeps the graph's
+  messages out of `shared_state`, and resumes several interrupts with LangGraph's native
+  map. `request_tool_approval` and `ApprovalDecision` put tool approvals in the same
+  dialog as PydanticAI's. `legacy_interrupts=True` maps the older `on_interrupt` event.
+- A draft upstream issue for ag-ui-langgraph's unconditional `fastapi` import
+  (`docs/integrations/upstream-issues.md`).
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.
 
@@ -76,6 +84,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - A `TOOL_CALL_RESULT` no longer moves a rejected or failed tool call back to `done`.
+- A `MESSAGES_SNAPSHOT` now fills in the result of a tool call it keeps, so LangGraph tool
+  calls end as `done` after their tool node runs.
 
 ### Security
 

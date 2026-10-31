@@ -688,7 +688,7 @@
 - **Depends on:** T-043, T-016, T-015
 - **Done:** `uv run pytest -k REQ_034 tests/integration -q` passes with no network.
 
-### T-045 · LangGraph contract test, legacy mode, upstream bug report `[P]` `[ ]`
+### T-045 · LangGraph contract test, legacy mode, upstream bug report `[P]` `[x] 2026-10-31`
 - **What:**
   - Contract test TD §8.4 item 3 (`lg_interrupt_to_agui` key mapping; the override hook
     is invoked).

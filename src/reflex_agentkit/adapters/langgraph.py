@@ -13,15 +13,29 @@ from reflex_agentkit.adapters._require import require
 require("langgraph", "langgraph", "ag_ui_langgraph")
 
 import dataclasses  # noqa: E402 - the guard must run before the optional imports
+import json  # noqa: E402
+import logging  # noqa: E402
 from collections.abc import AsyncIterator, Mapping  # noqa: E402
 from typing import Any, Self, cast  # noqa: E402
 
-from ag_ui.core import BaseEvent, Interrupt, ResumeEntry, RunAgentInput  # noqa: E402
+from ag_ui.core import (  # noqa: E402
+    BaseEvent,
+    CustomEvent,
+    Interrupt,
+    ResumeEntry,
+    RunAgentInput,
+    RunFinishedEvent,
+    RunFinishedInterruptOutcome,
+)
 from ag_ui_langgraph import LangGraphAgent  # noqa: E402
-from ag_ui_langgraph.interrupts import DEFAULT_RESUME_SENTINEL_CANCELLED  # noqa: E402
+from ag_ui_langgraph.interrupts import (  # noqa: E402
+    DEFAULT_RESUME_SENTINEL_CANCELLED,
+    lg_interrupt_to_agui,
+)
 from langchain_core.runnables import RunnableConfig  # noqa: E402
 from langgraph.graph.state import CompiledStateGraph  # noqa: E402
 from langgraph.types import Command, interrupt  # noqa: E402
+from langgraph.types import Interrupt as LangGraphInterrupt  # noqa: E402
 
 from reflex_agentkit.core.errors import ConfigurationError  # noqa: E402
 
@@ -45,6 +59,11 @@ CANCELLED_APPROVAL: dict[str, Any] = {"approved": False, "reason": "cancelled"}
 """What a cancelled tool approval resumes with (DD-012)."""
 
 _HIDDEN_SNAPSHOT_KEYS = frozenset({"messages", "tools"})
+_LEGACY_EVENT = "on_interrupt"
+_LEGACY_PREFIX = "legacy-"
+_LEGACY_TOOL_PREFIX = "legacy-tool-"
+
+_log = logging.getLogger(__name__)
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -165,7 +184,17 @@ class LangGraphAGUIAgent(LangGraphAgent):  # type: ignore[misc]  # untyped upstr
     async def run(self, input: RunAgentInput) -> AsyncIterator[BaseEvent]:
         """Stream one run as AG-UI events on a fresh clone (API §7.1)."""
         worker = self.clone()
-        async for event in LangGraphAgent.run(worker, input):
+        if not self.legacy_interrupts:
+            async for event in LangGraphAgent.run(worker, input):
+                yield event
+            return
+        legacy_values: list[Any] = []
+        async for event in LangGraphAgent.run(worker, _legacy_input(input)):
+            if isinstance(event, CustomEvent) and event.name == _LEGACY_EVENT:
+                legacy_values.append(_decode(event.value))
+                continue
+            if isinstance(event, RunFinishedEvent) and event.outcome is None and legacy_values:
+                event = _legacy_finish(event, legacy_values)
             yield event
 
     def get_state_snapshot(self, state: Any) -> Any:
@@ -193,10 +222,56 @@ class LangGraphAGUIAgent(LangGraphAgent):  # type: ignore[misc]  # untyped upstr
         def answer(entry: ResumeEntry) -> Any:
             if entry.status == "resolved":
                 return entry.payload
-            if reasons.get(entry.interrupt_id) == APPROVAL_REASON:
-                return dict(CANCELLED_APPROVAL)
-            return {DEFAULT_RESUME_SENTINEL_CANCELLED: True, "interrupt_id": entry.interrupt_id}
+            is_approval = reasons.get(entry.interrupt_id) == APPROVAL_REASON
+            return _cancelled_answer(entry.interrupt_id, is_approval=is_approval)
 
         if len(entries) == 1:
             return Command(resume=answer(entries[0]))
         return Command(resume={entry.interrupt_id: answer(entry) for entry in entries})
+
+
+# --- legacy interrupts (REQ-034.5, DD-012) ---------------------------------------------------
+
+
+def _cancelled_answer(interrupt_id: str, *, is_approval: bool) -> Any:
+    if is_approval:
+        return dict(CANCELLED_APPROVAL)
+    return {DEFAULT_RESUME_SENTINEL_CANCELLED: True, "interrupt_id": interrupt_id}
+
+
+def _legacy_input(run_input: RunAgentInput) -> RunAgentInput:
+    """Move a ``resume[]`` answer to ``forwarded_props.command.resume`` (DD-012)."""
+    if not run_input.resume:
+        return run_input
+    entry = run_input.resume[0]
+    if entry.status == "resolved":
+        answer = entry.payload
+    else:
+        is_approval = entry.interrupt_id.startswith(_LEGACY_TOOL_PREFIX)
+        answer = _cancelled_answer(entry.interrupt_id, is_approval=is_approval)
+    forwarded = dict(run_input.forwarded_props or {})
+    forwarded["command"] = {"resume": answer}
+    return run_input.model_copy(update={"resume": None, "forwarded_props": forwarded})
+
+
+def _decode(value: Any) -> Any:
+    """The legacy event carries a dict value as JSON text and a string as itself."""
+    if not isinstance(value, str):
+        return value
+    try:
+        return json.loads(value)
+    except ValueError:
+        return value
+
+
+def _legacy_finish(event: RunFinishedEvent, values: list[Any]) -> RunFinishedEvent:
+    """``RUN_FINISHED`` with the first legacy interrupt as a standard outcome."""
+    if len(values) > 1:
+        _log.warning("legacy interrupts: dropped %d extra interrupt(s)", len(values) - 1)
+    value = values[0]
+    is_approval = isinstance(value, Mapping) and value.get("reason") == APPROVAL_REASON
+    prefix = _LEGACY_TOOL_PREFIX if is_approval else _LEGACY_PREFIX
+    mapped = lg_interrupt_to_agui(LangGraphInterrupt(value=value, id=f"{prefix}{event.run_id}"))
+    mapped = mapped.model_copy(update={"metadata": {"langgraph": {"raw": value}}})
+    outcome = RunFinishedInterruptOutcome(type="interrupt", interrupts=[mapped])
+    return event.model_copy(update={"outcome": outcome})

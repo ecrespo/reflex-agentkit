@@ -8,8 +8,7 @@ no Streamlit.
 > **Status: pre-alpha, under active development.** Nothing is published on PyPI yet; the
 > first pre-release (`0.1.0a1`, on TestPyPI) is built and waiting for the release setup.
 > The pure core, the agent clients, the Reflex state engine (`AgentState`), the chat
-> components and the PydanticAI adapter are implemented and tested. The LangGraph adapter
-> is not.
+> components and both adapters (PydanticAI and LangGraph) are implemented and tested.
 
 ## Quickstart
 
@@ -94,8 +93,9 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation, client-tool rounds | ✅ done |
 | WP4 — PydanticAI adapter | `PydanticAIAgent`: a PydanticAI agent as an `AGUIAgent`, tool approvals, client tools | ✅ done |
 | WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (TestPyPI publish pending the release setup) |
-| WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval` | 🚧 next |
-| WP7+ — Dojo examples, docs, release | Ported demos, documentation site, `0.1.0` | ⏳ planned |
+| WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval`, legacy interrupts | ✅ done |
+| WP7 — Dojo examples | The five AG-UI Dojo demos for PydanticAI and LangGraph | 🚧 next |
+| WP8 — Hardening, docs, release | Documentation site, `0.1.0` on PyPI | ⏳ planned |
 
 ## What works today: `reflex_agentkit.core`
 
@@ -272,6 +272,64 @@ def book_hotel(city: str) -> str:
 class ChatState(AgentState, rx.State):
     agent: ClassVar = PydanticAIAgent(agent)
 ```
+
+## What works today: the LangGraph adapter
+
+Install the extra (`reflex-agentkit[langgraph]`) and wrap a compiled graph that has a
+checkpointer. `interrupt(value)` in the graph shows up as `pending_interrupt` and is
+answered with `respond_to_interrupt`. `request_tool_approval` pauses for a tool call and
+shows the approval dialog; it returns the decision, with edited arguments when the user
+changed them. In this sketch, `call_model` stands for your own chat-model node:
+
+```python
+from typing import Any, ClassVar
+
+import reflex as rx
+from langchain_core.messages import AIMessage, ToolMessage
+from langgraph.checkpoint.memory import InMemorySaver
+from langgraph.graph import END, START, MessagesState, StateGraph
+
+from reflex_agentkit import AgentState, agent_chat
+from reflex_agentkit.adapters.langgraph import LangGraphAGUIAgent, request_tool_approval
+
+
+def tools(state: MessagesState) -> dict[str, Any]:
+    last = state["messages"][-1]
+    assert isinstance(last, AIMessage)
+    call = last.tool_calls[0]
+    decision = request_tool_approval(str(call["id"]), call["name"], call["args"])
+    content = f"Booked {decision.args['city']}" if decision.approved else "Not booked"
+    return {"messages": [ToolMessage(content=content, tool_call_id=call["id"])]}
+
+
+def route_to_tools_or_end(state: MessagesState) -> str:
+    return "tools" if getattr(state["messages"][-1], "tool_calls", None) else END
+
+
+builder = StateGraph(MessagesState)
+builder.add_node("model", call_model)  # your chat-model node, e.g. ChatAnthropic + bind_tools
+builder.add_node("tools", tools)
+builder.add_edge(START, "model")
+builder.add_conditional_edges("model", route_to_tools_or_end, ["tools", END])
+builder.add_edge("tools", "model")
+
+
+class ChatState(AgentState, rx.State):
+    agent: ClassVar = LangGraphAGUIAgent(builder.compile(checkpointer=InMemorySaver()))
+
+
+def index() -> rx.Component:
+    return agent_chat(ChatState)
+```
+
+- One agent instance serves every session; each run works on a fresh copy.
+- Several interrupts at once are answered one at a time in the UI and resumed together,
+  each node receiving its own answer.
+- Cancelling while paused resumes the next run with
+  `ApprovalDecision(approved=False, reason="cancelled")` for an approval, or the
+  `{"__agui_cancelled__": True}` value for a generic interrupt.
+- `legacy_interrupts=True` supports integrations that only send the older `on_interrupt`
+  event.
 
 ## Development
 

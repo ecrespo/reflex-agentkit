@@ -455,7 +455,7 @@
 - **Depends on:** T-026, T-017, T-016
 - **Done:** `uv run pytest -k "REQ_018 or DD_009" tests/unit/state -q` passes.
 
-### T-029 · `AgentState` mixin: configuration, vars, projection · TF `[ ]`
+### T-029 · `AgentState` mixin: configuration, vars, projection · TF `[x] 2026-10-31`
 - **What:** `state/agent_state.py`:
   - `AgentState(rx.State, mixin=True)` with the ClassVars of API §4.1 (incl.
     `max_client_tool_rounds`);
@@ -471,14 +471,15 @@
   - Tests: a missing `agent` → `ConfigurationError` at class definition; negative
     `flush_interval_ms` → error; a duplicate client-tool name → error.
   - The projection never contains `encrypted_value` (INV-11).
-  - `test_REQ_003_1_states_isolated_per_token` (two tokens, one run each) passes.
+  - `test_REQ_003_1_states_isolated_per_token` (two tokens, one run each) passes. *(It needs
+    `send_message`, so it lives in the T-030 handler tests.)*
 
 ### T-030 · `AgentState` handlers and hooks · TF `[ ]`
 - **What:** the handlers of API §4.3 with their preconditions and no-op rules:
   - `send_message`, `approve_tool` (`str` JSON accepted), `reject_tool`,
     `respond_to_interrupt`, `cancel_run`, `new_thread`, `set_shared_state`,
     `patch_shared_state` (with `shared_state_model` validation), `retry_run`;
-  - the `_drive_run` background handler with no arguments and the `_pending_start`
+  - the `drive_run` background handler (TD v1.6) with no arguments and the `_pending_start`
     claim;
   - hooks `create_client`, `prepare_run_input`, `on_custom_event` (exceptions logged),
     `on_run_end`;

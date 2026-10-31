@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.5 |
+| **Version** | 1.6 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -58,7 +58,7 @@ Reflex backend worker (one asyncio loop)
  │  AgentState (mixin)                                                      │
  │   ├─ foreground handlers: send_message, approve_tool, cancel_run, …      │
  │   │    (validate → pure command fn → set _pending_start → return bg evt) │
- │   └─ background handler _drive_run ──► RunDriver (pure asyncio)          │
+ │   └─ background handler drive_run  ──► RunDriver (pure asyncio)          │
  │                                         │ owns ConversationState locally │
  │          ┌──── flush every N ms ◄───────┤ reduce() each event            │
  │          │  async with self:            │ runs client tools between      │
@@ -110,8 +110,9 @@ Reflex backend worker (one asyncio loop)
 2. It validates the text (REQ-001.4–6), calls `commands.begin_run(conv, text)` (pure:
    appends the user message, assigns `thread_id` if empty and a new `run_id`, sets status
    `running`), and writes the new `_conv`. It stores `_pending_start = run_id`, projects
-   the public vars, and returns `AgentState._drive_run` (a background event).
-3. `_drive_run` starts. Under `async with self`, it **claims** the start: it checks
+   the public vars, and returns `AgentState.drive_run` (a background event; Reflex 0.10.1 rejects
+   private event handlers, so the name is public and the claim token below guards it).
+3. `drive_run` starts. Under `async with self`, it **claims** the start: it checks
    `_pending_start == _conv.run_id`, clears `_pending_start`, and copies `_conv` locally.
    IF there is nothing to claim, it returns. This defeats forged or duplicate triggers
    (§6.1).
@@ -159,7 +160,7 @@ Reflex backend worker (one asyncio loop)
 2. `approve_tool`, `reject_tool` and `respond_to_interrupt` are foreground handlers. They
    validate, apply the pure command, and project.
 3. WHEN `commands.all_answered(conv)` holds, the handler calls `begin_run(conv, resume=…)`,
-   sets `_pending_start`, and returns `_drive_run`. The flow continues at A.3 with
+   sets `_pending_start`, and returns `drive_run`. The flow continues at A.3 with
    `RunAgentInput.resume` built by `commands.resume_entries(conv)`, which reads the
    entries `begin_run` captured in `conv.resume` (DM §3.10 v1.6) before it cleared the
    interrupts and answers.
@@ -296,10 +297,13 @@ allowed to fail and opens an issue when it does.
   - C: a decorator `@agent_state(agent)`.
 - **Decision:** A, the pre-approved fallback. B depends on Reflex internals that change
   between minors. C is unidiomatic for Reflex and hides the class var from type checkers.
-- **Mitigation:** `AgentState.__init_subclass__` catches the case where a subclass defines
-  `agent` without `ClassVar`. It cannot intercept Reflex's error, which fires first, so
-  the README, the docstring and the `ConfigurationError`/`VarTypeError` troubleshooting
-  entry all show the `ClassVar` form.
+- **Mitigation:** `AgentState.__init_subclass__` validates the subclass *before* calling
+  Reflex's `__init_subclass__` (verified on Reflex 0.10.1: the metaclass records `mixin=`
+  in the class's own `_mixin` and the fields are bound later, in `__init_subclass__`).
+  A configuration attribute defined without `ClassVar` therefore raises our
+  `ConfigurationError` naming the attribute, instead of Reflex's `VarTypeError`, and an
+  invalid class is never registered in the state tree. The README and the docstring
+  still show the `ClassVar` form.
 
 ### DD-007 — JSON Patch: `jsonpatch` library behind a typed façade
 
@@ -471,7 +475,7 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 ### 5.3 Error handling
 
 - Exceptions follow API §9.1.
-- Rule: **nothing escapes `_drive_run`**. Every exception maps to a status and an error
+- Rule: **nothing escapes `drive_run`**. Every exception maps to a status and an error
   code in the final flush. The failure is logged at ERROR with the `thread_id`/`run_id`
   context, naming only the error code and the exception type; the traceback is logged at
   DEBUG, because an agent's exception message may quote user content (REQ-027.2). `CancelledError` is handled as cancellation and not
@@ -486,7 +490,7 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 
 | Vector | Risk | Control |
 |---|---|---|
-| Browser triggers any public event handler with arbitrary args (Reflex event handlers are callable from the client) | State corruption, forged runs | Each handler validates its preconditions (API §4.3). `_drive_run` takes **no arguments** and runs only if it can claim `_pending_start` (one-shot), so a forged trigger is a no-op. |
+| Browser triggers any public event handler with arbitrary args (Reflex event handlers are callable from the client) | State corruption, forged runs | Each handler validates its preconditions (API §4.3). `drive_run` takes **no arguments** and runs only if it can claim `_pending_start` (one-shot), so a forged trigger is a no-op. |
 | Oversized payloads in `send_message`, `approve_tool(edited_args)`, `respond_to_interrupt` | Memory / cost abuse | `max_message_length` (32k chars). `edited_args` and interrupt payloads are capped at 64 KiB of serialized JSON → `INVALID_EDITED_ARGS` / ignored with a warning. Reflex's own frame size limit is the outer bound. |
 | `approve_tool` on another user's call | Cross-user action | Impossible: state is per token (REQ-003). Call IDs are looked up only in that session's `_conv`. |
 | LLM output with HTML/JS (XSS) | Script execution in users' browsers | DD-015: no raw HTML in markdown; args and results rendered as text. |
@@ -647,3 +651,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.3 | 2026-10-31 | Ernesto Crespo (with Claude) | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |
 | 1.4 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-1 resolved by the T-024 spike: handlers are tested through Reflex's `BaseStateEventProcessor` over an in-memory state manager; §8 updated. |
 | 1.5 | 2026-10-31 | Ernesto Crespo (with Claude) | §5.3 and Flow E: failures are logged at ERROR by error code and exception type only, with the traceback at DEBUG, so agent exception messages that quote user content never appear above DEBUG (REQ-027.2); found in T-026 (spec drift rule). |
+| 1.6 | 2026-10-31 | Ernesto Crespo (with Claude) | Flows A and C, §5.3, §6.1: the background handler is `drive_run`, because Reflex 0.10.1 rejects private event handlers (`ValueError: Event handlers cannot be private`); it stays a no-op unless it claims `_pending_start`. DD-006: the configuration check runs before Reflex binds the class, so a missing `ClassVar` raises `ConfigurationError`. Found in T-029 (spec drift rule). |

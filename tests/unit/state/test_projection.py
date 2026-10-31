@@ -131,7 +131,11 @@ def test_DM_H_3_dirty_args_are_parsed_when_valid_and_the_set_is_cleared() -> Non
         ToolCall(id="c2", name="b", args_text='{"q": "lisbon"}', status=ToolCallStatus.STREAMING),
         ToolCall(id="c3", name="c", args_text="[1, 2]", status=ToolCallStatus.STREAMING),
     )
-    conv = _conv(tool_calls=calls, dirty_tool_args=frozenset({"c1", "c2", "c3"}))
+    conv = _conv(
+        run_status=RunStatus.RUNNING,
+        tool_calls=calls,
+        dirty_tool_args=frozenset({"c1", "c2", "c3"}),
+    )
     refreshed = refresh_dirty_args(conv)
     assert [c.args for c in refreshed.tool_calls] == [None, {"q": "lisbon"}, None]
     assert refreshed.dirty_tool_args == frozenset()

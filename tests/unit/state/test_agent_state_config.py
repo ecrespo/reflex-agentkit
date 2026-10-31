@@ -120,7 +120,7 @@ def test_API_4_1_agent_of_the_wrong_type_is_a_configuration_error() -> None:
     with pytest.raises(ConfigurationError, match="agent"):
 
         class WrongAgentState(AgentState, rx.State):
-            agent: ClassVar = "not an agent"
+            agent: ClassVar = "not an agent"  # type: ignore[assignment]
 
 
 @pytest.mark.parametrize(
@@ -160,7 +160,7 @@ def test_API_4_1_client_tools_must_be_client_tools() -> None:
 
         class PlainFunctionToolsState(AgentState, rx.State):
             agent: ClassVar = _Agent()
-            client_tools: ClassVar = (len,)
+            client_tools: ClassVar = (len,)  # type: ignore[assignment]
 
 
 def test_API_4_1_shared_state_model_must_be_a_base_model() -> None:
@@ -169,7 +169,7 @@ def test_API_4_1_shared_state_model_must_be_a_base_model() -> None:
 
         class WrongModelState(AgentState, rx.State):
             agent: ClassVar = _Agent()
-            shared_state_model: ClassVar = dict
+            shared_state_model: ClassVar = dict  # type: ignore[assignment]
 
     class Model(pydantic.BaseModel):
         count: int = 0

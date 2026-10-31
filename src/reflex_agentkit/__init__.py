@@ -8,7 +8,7 @@ module-level ``__getattr__`` (PEP 562), so ``import reflex_agentkit.core`` never
 from __future__ import annotations
 
 import importlib
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from reflex_agentkit.core import (
     AgentClient,
@@ -25,10 +25,13 @@ from reflex_agentkit.core import (
     client_tool,
 )
 
+if TYPE_CHECKING:  # type checkers see the lazy names; runtime imports them on first use
+    from reflex_agentkit.state.agent_state import AgentState as AgentState
+
 __version__ = "0.1.0.dev0"
 
 # Public name -> module that defines it. Filled in as the state/components tasks land.
-_LAZY_EXPORTS: dict[str, str] = {}
+_LAZY_EXPORTS: dict[str, str] = {"AgentState": "reflex_agentkit.state.agent_state"}
 
 __all__ = [
     "AGUIAgent",

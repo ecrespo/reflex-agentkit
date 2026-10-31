@@ -655,7 +655,7 @@
 
 ## WP6 — LangGraph adapter
 
-### T-042 · `LangGraphAGUIAgent` · TF `[ ]`
+### T-042 · `LangGraphAGUIAgent` · TF `[x] 2026-10-31`
 - **What:** `adapters/langgraph.py`: a subclass of `ag_ui_langgraph.LangGraphAgent` with
   `emit_interrupt_outcome=True`, `enable_legacy_on_interrupt_event=False` and
   `emit_raw_events=False`. Checkpointer check → `ConfigurationError`. `run()` satisfies
@@ -665,7 +665,7 @@
 - **Depends on:** T-019, T-032
 - **Done:** `uv run pytest -k "REQ_034_1 or REQ_034_4" -q` passes.
 
-### T-043 · `request_tool_approval` and native multi-resume · TF `[ ]`
+### T-043 · `request_tool_approval` and native multi-resume · TF `[x] 2026-10-31`
 - **What:** `ApprovalDecision` and `request_tool_approval()` (the interrupt value with the
   native keys, TD DD-012). Override `_build_command_from_agui_resume`: single resolved →
   `Command(resume=payload)`; multiple → `Command(resume={interrupt_id: payload})`;

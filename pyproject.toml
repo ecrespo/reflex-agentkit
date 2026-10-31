@@ -102,6 +102,11 @@ strict = true
 module = ["reflex_agentkit.components", "reflex_agentkit.components.*"]
 disable_error_code = ["attr-defined", "no-any-return"]
 
+# ag-ui-langgraph ships no type information (no py.typed).
+[[tool.mypy.overrides]]
+module = ["ag_ui_langgraph", "ag_ui_langgraph.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 minversion = "8.3"
 testpaths = ["tests"]

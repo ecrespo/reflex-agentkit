@@ -7,7 +7,7 @@ no Streamlit.
 
 > **Status: pre-alpha, under active development.** Nothing is published on PyPI yet. The
 > pure core, the agent clients and the Reflex state engine (`AgentState`) are implemented
-> and tested; the components and the adapters are not. The API below marked *planned*
+> and tested; the PydanticAI adapter is implemented; the components and the LangGraph adapter are not. The API below marked *planned*
 > does not exist yet.
 
 ## Progress
@@ -21,8 +21,9 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP1 — Pure core | Models, reducer, commands, client tools, `RunInputBuilder`, property tests | ✅ done |
 | WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | ✅ done |
 | WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation, client-tool rounds | ✅ done |
-| WP4 — PydanticAI adapter | `AGUIAgent` over a PydanticAI agent, tool approvals | 🚧 next |
-| WP5+ — LangGraph adapter, components, examples | LangGraph adapter, chat components, quickstart, docs | ⏳ planned |
+| WP4 — PydanticAI adapter | `PydanticAIAgent`: a PydanticAI agent as an `AGUIAgent`, tool approvals, client tools | ✅ done |
+| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | 🚧 next |
+| WP6+ — LangGraph adapter, Dojo examples, docs | LangGraph adapter, ported demos, documentation site | ⏳ planned |
 
 ## What works today: `reflex_agentkit.core`
 
@@ -171,6 +172,34 @@ app.add_page(index)
   (`@client_tool(requires_approval=True)`).
 - **Hooks**: override `create_client` (for example, per-user auth headers),
   `prepare_run_input`, `on_custom_event` or `on_run_end`.
+
+## What works today: the PydanticAI adapter
+
+Install the extra (`reflex-agentkit[pydantic-ai]`) and wrap the agent. Tools declared with
+`requires_approval=True` pause the run for `approve_tool` / `reject_tool` with no extra
+configuration; edited arguments reach the tool.
+
+```python
+from typing import ClassVar
+
+import reflex as rx
+from pydantic_ai import Agent
+
+from reflex_agentkit import AgentState
+from reflex_agentkit.adapters.pydantic_ai import PydanticAIAgent
+
+agent = Agent("anthropic:claude-sonnet-5-5", instructions="You book hotels.")
+
+
+@agent.tool_plain(requires_approval=True)
+def book_hotel(city: str) -> str:
+    """Book a hotel in a city."""
+    return f"Booked a hotel in {city}."
+
+
+class ChatState(AgentState, rx.State):
+    agent: ClassVar = PydanticAIAgent(agent)
+```
 
 ## Planned usage (not available yet)
 

@@ -46,8 +46,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (default 50 ms), cancellation within 1 s in the same worker or from another worker over
   a shared state manager, client-tool rounds with follow-up runs, local approvals and a
   loop limit, and silent stop when the conversation was replaced.
+- `reflex_agentkit.adapters.pydantic_ai.PydanticAIAgent`: runs a PydanticAI agent in
+  process through its AG-UI adapter; approval-required tools pause as AG-UI interrupts
+  without declaring `DeferredToolRequests`; `deps` or a per-run `deps_factory`; extra
+  `run_stream` arguments are forwarded. Importing an adapter without its extra raises
+  `AdapterNotInstalledError` with the install command.
+- `scripts/record_fixture.py` records event fixtures from real adapter runs.
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.
+
+### Fixed
+
+- A `TOOL_CALL_RESULT` no longer moves a rejected or failed tool call back to `done`.
 
 ### Security
 

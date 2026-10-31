@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import pytest
 from ag_ui.core import (
     BaseEvent,
     RunErrorEvent,
@@ -346,3 +347,21 @@ def test_REQ_009_5_id_less_chunk_continues_the_last_streaming_call() -> None:
     )
     assert _call(conv, "c1").args_text == "{}"
     assert _call(conv, "c2").args_text == ""
+
+
+@pytest.mark.parametrize(
+    "args_text",
+    ["[" * 100_000 + "]" * 100_000, '{"x": NaN}', '{"x": Infinity}'],
+    ids=["deeply-nested", "nan", "infinity"],
+)
+def test_REQ_009_7_pathological_args_are_invalid_not_a_crash(args_text: str) -> None:
+    """REQ-005.1, REQ-009.7: ``reduce`` stays total on hostile args; they are invalid."""
+    config = ReducerConfig(max_args_bytes=1_048_576)
+    conv = _apply(
+        _started(config),
+        _start(),
+        ToolCallArgsEvent(tool_call_id="c1", delta=args_text),
+        ToolCallEndEvent(tool_call_id="c1"),
+    )
+    assert _call(conv).status is ToolCallStatus.ERROR
+    assert _call(conv).result == INVALID_TOOL_ARGUMENTS

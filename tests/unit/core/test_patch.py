@@ -102,3 +102,15 @@ def test_DD_007_jsonpatch_is_imported_only_by_the_facade() -> None:
         if "import jsonpatch" in path.read_text(encoding="utf-8")
     ]
     assert importers == ["reflex_agentkit/core/_patch.py"]
+
+
+def test_REQ_016_3_pathologically_deep_documents_raise_patch_error() -> None:
+    """REQ-005.1, REQ-016.3: a document deep enough to exhaust recursion is a PatchError."""
+    deep: JsonObject = {}
+    node = deep
+    for _ in range(100_000):
+        child: JsonObject = {}
+        node["n"] = child
+        node = child
+    with pytest.raises(PatchError):
+        apply_patch(deep, [{"op": "add", "path": "/x", "value": 1}])

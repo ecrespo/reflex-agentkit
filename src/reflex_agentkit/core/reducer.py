@@ -292,13 +292,19 @@ def _text_chunk(conv: ConversationState, event: TextMessageChunkEvent) -> Conver
 # --- tool calls ----------------------------------------------------------------------------
 
 
+def _reject_constant(name: str) -> object:
+    """``NaN``/``Infinity`` are not JSON: re-sending them upstream would be invalid."""
+    raise ValueError(f"non-standard JSON constant {name}")
+
+
 def _parse_args(text: str) -> JsonObject | None:
     """Parse accumulated args; an empty text is ``{}``. Non-objects are invalid."""
     if not text.strip():
         return {}
     try:
-        value = json.loads(text)
-    except ValueError:
+        value = json.loads(text, parse_constant=_reject_constant)
+    except (ValueError, RecursionError):
+        # RecursionError: pathologically nested input must not break totality (REQ-005).
         return None
     return value if isinstance(value, dict) else None
 

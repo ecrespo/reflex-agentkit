@@ -20,6 +20,7 @@ _PATCH_FAILURES: tuple[type[BaseException], ...] = (
     AttributeError,
     IndexError,
     KeyError,
+    RecursionError,  # pathologically deep documents or values
     TypeError,
     ValueError,
 )

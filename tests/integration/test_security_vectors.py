@@ -277,3 +277,34 @@ def test_TD_6_1_the_browser_cannot_configure_the_agent_endpoint() -> None:
         assert not {"url", "headers", "endpoint", "agent", "client"} & set(params), name
     assert "agent" not in SvEndpoint.vars
     assert "http://agent.internal" not in json_dumps(SvEndpoint().dict())
+
+
+def test_TD_6_1_hooks_from_another_mixin_are_not_browser_callable() -> None:
+    """An override inherited from a Reflex mixin that is not an ``AgentState`` is hidden too."""
+
+    class SvHookMixin(rx.State, mixin=True):
+        async def on_run_end(self, status: RunStatus) -> None:
+            pass
+
+        def create_client(self) -> Any:
+            return HttpAGUIClient("http://agent.internal")
+
+    class SvMixedHooks(SvHookMixin, AgentState, rx.State):
+        agent: ClassVar = HttpAGUIClient("http://agent.internal")
+
+    assert not NOT_HANDLERS & set(SvMixedHooks.event_handlers)
+    assert "send_message" in SvMixedHooks.event_handlers
+
+
+def test_TD_6_1_a_hook_declared_as_an_event_is_a_configuration_error() -> None:
+    """``@rx.event`` on a hook would make it browser-callable, so the class is refused."""
+    from reflex_agentkit import ConfigurationError
+
+    with pytest.raises(ConfigurationError, match="on_run_end"):
+
+        class SvEventHook(AgentState, rx.State):
+            agent: ClassVar = HttpAGUIClient("http://agent.internal")
+
+            @rx.event
+            async def on_run_end(self, status: RunStatus) -> None:
+                pass

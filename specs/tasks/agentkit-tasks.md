@@ -201,7 +201,7 @@
 - **Done:** `uv run pytest -k "REQ_004 or REQ_010 or REQ_012" -q` passes, and all 7
   fixtures pass.
 
-### T-011 · Reducer: text messages · TF `[ ]`
+### T-011 · Reducer: text messages · TF `[x] 2026-10-31`
 - **What:** START/CONTENT/END/CHUNK, the implicit message on an unknown ID
   (`IMPLICIT_MESSAGE`), and the close of open messages on any terminal event.
 - **REQ:** REQ-008.1–6

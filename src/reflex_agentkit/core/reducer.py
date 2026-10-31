@@ -25,15 +25,21 @@ from ag_ui.core import (
     RunStartedEvent,
     StepFinishedEvent,
     StepStartedEvent,
+    TextMessageChunkEvent,
+    TextMessageContentEvent,
+    TextMessageEndEvent,
+    TextMessageStartEvent,
 )
 from pydantic import TypeAdapter, ValidationError
 
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import ErrorCode
 from reflex_agentkit.core.models import (
+    ChatMessage,
     Diagnostic,
     DiagnosticCode,
     DiagnosticLevel,
+    MessageRole,
     RunStatus,
     ToolCallStatus,
 )
@@ -110,7 +116,7 @@ def _after_end(conv: ConversationState, event_type: str) -> ConversationState:
         conv,
         "debug",
         DiagnosticCode.IGNORED_EVENT,
-        f"ignored {event_type}: the run already ended with status {conv.run_status.value!r}",
+        f"ignored {event_type}: the run is not running (status {conv.run_status.value!r})",
         event_type,
     )
 
@@ -134,15 +140,11 @@ def _run_finished(conv: ConversationState, event: RunFinishedEvent) -> Conversat
     """REQ-004.1: the run completes; open streams are closed."""
     if event.run_id not in conv.last_run_ids:
         return _stale(conv, event.run_id, EventType.RUN_FINISHED.value)
-    if conv.run_status is not RunStatus.RUNNING:
-        return _after_end(conv, EventType.RUN_FINISHED.value)
     return _close_streams(conv).with_(run_status=RunStatus.IDLE)
 
 
 def _run_error(conv: ConversationState, event: RunErrorEvent) -> ConversationState:
     """REQ-004.3: the run failed; the content streamed so far is kept."""
-    if conv.run_status is not RunStatus.RUNNING:
-        return _after_end(conv, EventType.RUN_ERROR.value)
     return _close_streams(conv).with_(
         run_status=RunStatus.ERROR, error=event.message, error_code=ErrorCode.AGENT_RUN_ERROR
     )
@@ -160,12 +162,123 @@ def _step_finished(conv: ConversationState, event: StepFinishedEvent) -> Convers
     return conv.with_(current_step="")
 
 
+# --- text messages -------------------------------------------------------------------------
+
+
+def _replace_message(conv: ConversationState, index: int, msg: ChatMessage) -> ConversationState:
+    return conv.with_(messages=(*conv.messages[:index], msg, *conv.messages[index + 1 :]))
+
+
+def _append_message(conv: ConversationState, msg: ChatMessage) -> ConversationState:
+    return conv.with_(messages=(*conv.messages, msg))
+
+
+def _role(role: str | None) -> MessageRole:
+    return MessageRole(role) if role else MessageRole.ASSISTANT
+
+
+def _append_delta(conv: ConversationState, index: int, delta: str) -> ConversationState:
+    msg = conv.messages[index]
+    return _replace_message(conv, index, dataclasses.replace(msg, content=msg.content + delta))
+
+
+def _text_start(conv: ConversationState, event: TextMessageStartEvent) -> ConversationState:
+    """REQ-008.1: append a streaming message (assistant unless the event names a role)."""
+    if event.message_id in conv._message_index:
+        return _diag(
+            conv,
+            "warning",
+            DiagnosticCode.DUPLICATE_ID,
+            f"ignored a second start of message {event.message_id!r}",
+            EventType.TEXT_MESSAGE_START.value,
+        )
+    msg = ChatMessage(id=event.message_id, role=_role(event.role), streaming=True)
+    return _append_message(conv, msg)
+
+
+def _text_content(conv: ConversationState, event: TextMessageContentEvent) -> ConversationState:
+    """REQ-008.2, REQ-008.5: append the delta, creating the message if it is unknown."""
+    index = conv._message_index.get(event.message_id)
+    if index is not None:
+        return _append_delta(conv, index, event.delta)
+    msg = ChatMessage(
+        id=event.message_id, role=MessageRole.ASSISTANT, content=event.delta, streaming=True
+    )
+    return _diag(
+        _append_message(conv, msg),
+        "warning",
+        DiagnosticCode.IMPLICIT_MESSAGE,
+        f"created message {event.message_id!r} implicitly: content arrived before its start",
+        EventType.TEXT_MESSAGE_CONTENT.value,
+    )
+
+
+def _text_end(conv: ConversationState, event: TextMessageEndEvent) -> ConversationState:
+    """REQ-008.3: stop streaming the message."""
+    index = conv._message_index.get(event.message_id)
+    if index is None:
+        return _diag(
+            conv,
+            "warning",
+            DiagnosticCode.UNKNOWN_MESSAGE_ID,
+            f"ignored the end of unknown message {event.message_id!r}",
+            EventType.TEXT_MESSAGE_END.value,
+        )
+    msg = conv.messages[index]
+    if not msg.streaming:
+        return conv
+    return _replace_message(conv, index, dataclasses.replace(msg, streaming=False))
+
+
+def _open_message_index(conv: ConversationState) -> int | None:
+    """The message a chunk without an ID continues: the last one still streaming."""
+    for index in range(len(conv.messages) - 1, -1, -1):
+        if conv.messages[index].streaming:
+            return index
+    return None
+
+
+def _text_chunk(conv: ConversationState, event: TextMessageChunkEvent) -> ConversationState:
+    """REQ-008.4: chunks are START (first chunk of an ID) + CONTENT; END comes at run end.
+
+    A chunk that starts a new message ends the message chunks were feeding until then,
+    as the AG-UI chunk semantics require. A chunk without an ID continues that message.
+    """
+    delta = event.delta or ""
+    if event.message_id is None:
+        index = _open_message_index(conv)
+        if index is None:
+            return _diag(
+                conv,
+                "warning",
+                DiagnosticCode.UNKNOWN_MESSAGE_ID,
+                "ignored a text chunk without a message ID and no message to continue",
+                EventType.TEXT_MESSAGE_CHUNK.value,
+            )
+        return _append_delta(conv, index, delta) if delta else conv
+
+    index = conv._message_index.get(event.message_id)
+    if index is not None:
+        return _append_delta(conv, index, delta) if delta else conv
+
+    previous = _open_message_index(conv)
+    if previous is not None:
+        closed = dataclasses.replace(conv.messages[previous], streaming=False)
+        conv = _replace_message(conv, previous, closed)
+    msg = ChatMessage(id=event.message_id, role=_role(event.role), content=delta, streaming=True)
+    return _append_message(conv, msg)
+
+
 _HANDLERS: dict[str, Handler] = {
     EventType.RUN_STARTED: _run_started,
     EventType.RUN_FINISHED: _run_finished,
     EventType.RUN_ERROR: _run_error,
     EventType.STEP_STARTED: _step_started,
     EventType.STEP_FINISHED: _step_finished,
+    EventType.TEXT_MESSAGE_START: _text_start,
+    EventType.TEXT_MESSAGE_CONTENT: _text_content,
+    EventType.TEXT_MESSAGE_END: _text_end,
+    EventType.TEXT_MESSAGE_CHUNK: _text_chunk,
 }
 
 HANDLED_EVENT_TYPES: frozenset[str] = frozenset(_HANDLERS) | _IGNORED
@@ -191,6 +304,12 @@ def reduce(state: ConversationState, event: BaseEvent) -> ConversationState:
             event_type,
         )
     handler = _HANDLERS.get(event_type)
+    if handler is not None and state.run_status is not RunStatus.RUNNING:
+        # Only a running run accepts events: nothing can reopen a stream after the end
+        # (INV-5). RUN_FINISHED of another run still reports itself as stale first.
+        if isinstance(event, RunFinishedEvent) and event.run_id not in state.last_run_ids:
+            return _stale(state, event.run_id, event_type)
+        return _after_end(state, event_type)
     if handler is None:
         return _diag(
             state,

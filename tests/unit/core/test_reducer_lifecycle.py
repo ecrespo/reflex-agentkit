@@ -259,3 +259,11 @@ def test_REQ_005_1_every_known_event_type_is_handled_or_ignored() -> None:
     from reflex_agentkit.core.reducer import HANDLED_EVENT_TYPES
 
     assert set(EventType) == HANDLED_EVENT_TYPES
+
+
+def test_REQ_010_2_stale_run_finished_after_the_end_is_still_reported_as_stale() -> None:
+    """REQ-010.2: a foreign run's ``RUN_FINISHED`` is stale even once the run has ended."""
+    conv = _started()
+    conv = reduce(conv, RunFinishedEvent(thread_id=conv.thread_id, run_id=conv.run_id))
+    after = reduce(conv, RunFinishedEvent(thread_id=conv.thread_id, run_id="old"))
+    assert _codes(after) == [DiagnosticCode.STALE_RUN_EVENT]

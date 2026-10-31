@@ -172,3 +172,11 @@ def test_REQ_008_6_events_after_the_run_ended_are_ignored() -> None:
     assert after.messages == conv.messages
     assert _codes(after) == [DiagnosticCode.IGNORED_EVENT]
     check_invariants(after)
+
+
+def test_REQ_008_3_a_repeated_end_changes_nothing() -> None:
+    """REQ-008.3: ending an already-ended message is a no-op."""
+    conv = _apply(
+        _started(), TextMessageStartEvent(message_id="m1"), TextMessageEndEvent(message_id="m1")
+    )
+    assert reduce(conv, TextMessageEndEvent(message_id="m1")) == conv

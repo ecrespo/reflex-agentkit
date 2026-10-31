@@ -129,7 +129,8 @@
 - **Depends on:** T-002
 - **Done:**
   - Tests: StrEnum values serialize to strings via `json.dumps(dataclasses.asdict(...))`.
-  - Pickle round-trips. `__setstate__` tolerates a missing field (default) and an
+  - Pickle round-trips. The tolerant restore (`_from_state`, reached through
+    `TolerantPickle.__reduce__`, DM §8 v1.2) tolerates a missing field (default) and an
     unknown field (dropped).
   - `ConfigurationError` is an instance of `ValueError`; `AdapterNotInstalledError` is
     an instance of `ImportError`.

@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.1 |
+| **Version** | 1.2 |
 | **Date** | 2026-10-30 |
 | **PRD / API / TD** | [PRD v1.1](../prd/agentkit-v0.1.md) · [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md), all APPROVED |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.0 |
@@ -291,7 +291,7 @@ streaming flags) is a property test.
 | Channel | Format | Compatibility rule |
 |---|---|---|
 | Browser (public vars) | Reflex `json_dumps` of dataclasses, StrEnums and tuples | Public field names are API (Art. 8). They can be added, but not renamed or removed without deprecation. |
-| State manager (`_conv`) | `pickle`, through the Reflex state manager (Redis keeps it for ≤ 3600 s by default) | **`ConversationState` defines `__getstate__` → `{"schema_version": n, **fields}` and a tolerant `__setstate__`:** missing fields take their defaults and unknown fields are dropped. After a library upgrade, a live Redis session with an older pickle therefore loads instead of crashing the user's session. Nested value types get the same tolerant `__setstate__` through a shared mixin. A test pickles a v1 state, removes a field from the payload, adds an unknown one, and asserts that the state loads. |
+| State manager (`_conv`) | `pickle`, through the Reflex state manager (Redis keeps it for ≤ 3600 s by default) | **Every value type pickles through the shared `TolerantPickle` mixin:** its `__reduce__` emits `{"schema_version": n, **fields}` (derived fields excluded) and restores through a tolerant constructor (`_from_state`): missing fields take their defaults and unknown fields are dropped. After a library upgrade, a live Redis session with an older pickle therefore loads instead of crashing the user's session. *Why `__reduce__` and not `__setstate__`:* `@dataclass(frozen=True, slots=True)` installs its own `__getstate__`/`__setstate__` on each class (CPython 3.11–3.13), which would silently shadow a mixin's; `__reduce__` is not touched. `ConversationState` rebuilds its derived indexes after restore. A test pickles a v1 state, removes a field from the payload, adds an unknown one, and asserts that the state loads. |
 | Test fixtures | JSON Lines (§10) | Fixtures are versioned with the code and never rewritten silently. A behavior change requires updating the expected header in the same PR, citing the delta spec. |
 
 `schema_version` is bumped only when the meaning of an existing field changes (not when a
@@ -375,3 +375,4 @@ v0.2 persistence."
 |---|---|---|
 | 1.0 | 2026-10-30 | Initial version |
 | 1.1 | 2026-10-30 | Analyze fixes: cancel-while-paused clears interrupts (A-05); INV-8 one-directional (A-07); `AGENT_EXCEPTION` (A-06); RUN_FINISHED keeps `running` for client-tool rounds (A-02). |
+| 1.2 | 2026-10-31 | §8 tolerant pickling via `TolerantPickle.__reduce__` + `_from_state` instead of `__setstate__` (frozen slots dataclasses override a mixin's `__setstate__`); found in T-006 (spec drift rule). |

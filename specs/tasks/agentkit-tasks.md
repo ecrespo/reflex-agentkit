@@ -3,7 +3,7 @@
 > Source specs: [Constitution v1.0](../constitution.md) · [PRD v1.1](../prd/agentkit-v0.1.md) ·
 > [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md) ·
 > [Data Model v1.0](../data-model/agentkit-schema.md) · [Plan v1.0](../plans/agentkit-phase-1.md)
-> Plan phase covered: Phase 1 (WP0–WP8 → `v0.1.0`) · Generated: 2026-10-30 · Version 1.1 (Analyze fixes applied) · Status: `APPROVED` (2026-10-30)
+> Plan phase covered: Phase 1 (WP0–WP8 → `v0.1.0`) · Generated: 2026-10-30 · Version 1.1 (Analyze fixes applied) · Status: `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31)
 
 ## Conventions of this file
 
@@ -634,8 +634,8 @@
   green. A manual check, `ANTHROPIC_API_KEY=… uv run --package quickstart reflex run`,
   streams, shows `get_weather`, and opens the approval dialog for `book_hotel`.
 
-### T-041 · Release workflow and `0.1.0a1` on PyPI `[!]`
-> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). No TestPyPI (maintainer decision, Plan v1.2). Releases are automatic (Plan v1.3). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publisher on PyPI (owner `ecrespo`, repository `reflex-agentkit`, workflow `release.yml`, environment `pypi`) and the GitHub environment `pypi` (it does not exist yet). Then merging `develop` (at `0.1.0a1`) into `main` publishes and tags it; run the walkthrough against PyPI.
+### T-041 · Release workflow and `0.1.0a1` on PyPI `[x] 2026-10-31`
+> **Note:** the maintainer registered the PyPI pending publisher; merging PR #2 ran `release.yml` (tests, build, trusted publishing, tag, GitHub pre-release) and published `0.1.0rc1` (the `0.1.0a1` pre-release was folded into it). The GitHub environment `pypi` was created by the first run.
 
 - **What:** `.github/workflows/release.yml`:
   - on a push to `main` whose `__version__` is publishable (not `.dev`) and untagged, and on
@@ -791,8 +791,8 @@
 - **Done:** three drafts exist, each with a "how to submit" header (target repo, path,
   PR title).
 
-### T-052 · `0.1.0rc1` → `v0.1.0` `[!]`
-> **Note (2026-10-31):** the version is `0.1.0rc1` on `develop` and PR #2 (develop → main) is open. Blocked on the maintainer: register the PyPI pending publisher (T-041), merge PR #2 (which publishes `0.1.0rc1`), then the fresh-environment walkthrough, the CHANGELOG `[0.1.0]` section and the `0.1.0` bump follow.
+### T-052 · `0.1.0rc1` → `v0.1.0` `[~]`
+> **Note (2026-10-31):** `0.1.0rc1` was published through PR #2 (PyPI, tag `v0.1.0rc1`, GitHub pre-release). Fresh-environment walkthrough: `uv add "reflex-agentkit[all]==0.1.0rc1"` installs and imports; the quickstart compiles; a real Ollama model (`qwen3:8b`) completed approval with edited arguments through both adapters and all ten Dojo demos (five per adapter). It found one bug, fixed (DM v1.11: one-chunk LangGraph tool calls showed empty arguments). The manual run with Claude needs an Anthropic key and is left to the maintainer. Version `0.1.0`, CHANGELOG `[0.1.0]` and the specs' released state are on `develop`; the `0.1.0` release PR is open. Done once it is merged and `uv add reflex-agentkit` installs `0.1.0`.
 
 - **What:** bump to `0.1.0rc1` and merge to `main` (published automatically) → fresh-env walkthrough (the PydanticAI and
   LangGraph dojos plus the quickstart) → fix anything found → CHANGELOG `[0.1.0]` → bump

@@ -704,7 +704,7 @@
 
 ## WP7 — Dojo examples
 
-### T-046 · Shared model selection for examples `[ ]`
+### T-046 · Shared model selection for examples `[x] 2026-10-31`
 - **What:** `examples/_shared/models.py` (a workspace-local helper package). For
   `AGENTKIT_MODEL`:
   - unset → `anthropic:claude-sonnet-5-5`;

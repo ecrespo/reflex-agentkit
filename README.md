@@ -337,7 +337,7 @@ The workflow is uv only (Python 3.11–3.13).
 
 | Purpose | Command |
 |---|---|
-| Set up the environment | `uv sync --all-extras` |
+| Set up the environment | `uv sync --all-extras --all-packages` |
 | Lint and format check | `uv run ruff check .` · `uv run ruff format --check .` |
 | Type check (strict on `core` and `state`) | `uv run mypy` |
 | Tests with coverage | `uv run pytest` |

@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterable
 from dataclasses import replace
 
 from ag_ui.core import ResumeEntry
@@ -34,6 +34,7 @@ from reflex_agentkit.core.reducer import close_streams
 
 __all__ = [
     "CANCELLED_RESULT",
+    "LOCAL_INTERRUPT_PREFIX",
     "MAX_PAYLOAD_BYTES",
     "all_answered",
     "apply_approval",
@@ -44,7 +45,9 @@ __all__ = [
     "apply_rejection",
     "begin_run",
     "new_thread",
+    "request_local_approvals",
     "resume_entries",
+    "start_client_tool_round",
 ]
 
 MAX_PAYLOAD_BYTES = 64 * 1024
@@ -290,6 +293,60 @@ def apply_client_tool_result(
         id=new_id(), role=MessageRole.TOOL, content=result, tool_call_id=call_id, is_error=is_error
     )
     return conv.with_(tool_calls=_with_call(conv, finished), messages=(*conv.messages, tool_msg))
+
+
+LOCAL_INTERRUPT_PREFIX = "local-"
+"""Prefix of the interrupt IDs of client-tool approvals (DM §3.2, §3.4)."""
+
+
+def request_local_approvals(conv: ConversationState, call_ids: Iterable[str]) -> ConversationState:
+    """Pause on local approvals for approval-required client tools (REQ-018.3, Flow B.2).
+
+    Each named call that is a running client-tool call moves to ``pending_approval``
+    behind an ``OpenInterrupt`` with ``is_local=True`` and the ID ``local-<call_id>``.
+    Local interrupts are answered by ``approve_tool``/``reject_tool`` and never sent
+    upstream. Outside a running run, or with no such call, this is a no-op.
+    """
+    if conv.run_status is not RunStatus.RUNNING:
+        return conv
+    calls = list(conv.tool_calls)
+    opened: list[OpenInterrupt] = []
+    for call_id in dict.fromkeys(call_ids):
+        index = conv._tool_index.get(call_id)
+        if index is None:
+            continue
+        call = calls[index]
+        if not call.is_client_tool or call.status is not ToolCallStatus.RUNNING:
+            continue
+        interrupt_id = f"{LOCAL_INTERRUPT_PREFIX}{call_id}"
+        calls[index] = replace(
+            call, status=ToolCallStatus.PENDING_APPROVAL, interrupt_id=interrupt_id
+        )
+        opened.append(
+            OpenInterrupt(id=interrupt_id, reason="tool_call", tool_call_id=call_id, is_local=True)
+        )
+    if not opened:
+        return conv
+    return conv.with_(
+        tool_calls=tuple(calls),
+        interrupts=tuple(opened),
+        answers={},
+        run_status=RunStatus.AWAITING_INPUT,
+    )
+
+
+def start_client_tool_round(conv: ConversationState, *, max_rounds: int) -> ConversationState:
+    """Count one client-tool round of the turn, or stop a looping model (DD-009).
+
+    The round past ``max_rounds`` ends the run in ``error`` with
+    ``CLIENT_TOOL_LOOP_LIMIT``. Outside a running run this is a no-op.
+    """
+    if conv.run_status is not RunStatus.RUNNING:
+        return conv
+    if conv.client_tool_rounds >= max_rounds:
+        message = f"the agent called client tools in more than {max_rounds} consecutive rounds"
+        return apply_failure(conv, ErrorCode.CLIENT_TOOL_LOOP_LIMIT, message)
+    return conv.with_(client_tool_rounds=conv.client_tool_rounds + 1)
 
 
 def apply_failure(conv: ConversationState, code: ErrorCode, message: str) -> ConversationState:

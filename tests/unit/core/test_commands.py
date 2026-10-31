@@ -598,3 +598,16 @@ def test_REQ_004_4_failure_outside_a_running_run_is_a_no_op() -> None:
 
     idle = ConversationState.initial(CONFIG)
     assert apply_failure(idle, ErrorCode.AGENT_STREAM_ERROR, "x") is idle
+
+
+def test_REQ_018_3_local_approval_skips_backend_calls() -> None:
+    """REQ-018.3: only client-tool calls take a local approval."""
+    backend = ToolCall(id="b1", name="book", status=ToolCallStatus.RUNNING, parent_message_id="m1")
+    conv = _paused(calls=(backend,)).with_(run_status=RunStatus.RUNNING)
+    assert request_local_approvals(conv, ["b1"]) is conv
+
+
+def test_DD_009_round_outside_a_running_run_is_a_no_op() -> None:
+    """DD-009: no round is counted unless the run is running."""
+    conv = ConversationState.initial(CONFIG)
+    assert start_client_tool_round(conv, max_rounds=1) is conv

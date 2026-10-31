@@ -22,10 +22,23 @@ from ag_ui.core import BaseEvent, CustomEvent, RunAgentInput, RunFinishedEvent
 
 from reflex_agentkit.core._log import RunLogger, get_logger
 from reflex_agentkit.core.clients.base import AgentClient
-from reflex_agentkit.core.commands import apply_cancel, apply_failure
+from reflex_agentkit.core.commands import (
+    apply_cancel,
+    apply_client_tool_result,
+    apply_failure,
+    begin_run,
+    request_local_approvals,
+    start_client_tool_round,
+)
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import AgentHTTPError, AgentStreamError, ErrorCode
-from reflex_agentkit.core.models import CustomEventRecord, ReducerConfig, RunStatus
+from reflex_agentkit.core.models import (
+    CustomEventRecord,
+    ReducerConfig,
+    RunStatus,
+    ToolCall,
+    ToolCallStatus,
+)
 from reflex_agentkit.core.reducer import reduce
 from reflex_agentkit.core.run_input import RunInputBuilder
 from reflex_agentkit.core.tools import ClientTool
@@ -163,6 +176,8 @@ class RunDriver:
         self._registry = registry
         self._token = client_token
         self._builder = RunInputBuilder(client_tools=tuple(settings.client_tools))
+        self._tools = {tool.name: tool for tool in settings.client_tools}
+        self._rounds = 0
         self._run_id = ""
         self._conv: ConversationState | None = None
         self._log = RunLogger(_logger, thread_id="", run_id="")
@@ -176,7 +191,7 @@ class RunDriver:
         self._conv = conv
         final: ConversationState | None = None
         try:
-            final = await self._stream(conv)
+            final = await self._turn(conv)
         except asyncio.CancelledError:
             # Flow D.2: the registry path (or a worker shutdown). The driver owns its task
             # and nothing awaits it, so the cancellation is absorbed, not re-raised.
@@ -188,14 +203,125 @@ class RunDriver:
             self._registry.unregister(self._token, self._run_id)
         status = "ownership lost" if final is None else final.run_status.value
         self._log.info(
-            "run ended: status=%s events=%d flushes=%d duration=%.3fs",
+            "run ended: status=%s events=%d flushes=%d client_tool_rounds=%d duration=%.3fs",
             status,
             self._events,
             self._flushes,
+            self._rounds,
             time.monotonic() - started,
         )
         if final is not None:
             await self._run_end_hook(final.run_status)
+
+    async def _turn(self, conv: ConversationState) -> ConversationState | None:
+        """Runs and client-tool rounds until the turn ends (Flow A.8, B, C.4).
+
+        A conversation that starts with running client-tool calls (approved locally,
+        Flow C.4) runs their handlers before the first stream.
+        """
+        current: ConversationState | None = conv
+        while current is not None and current.run_status is RunStatus.RUNNING:
+            if self._awaiting_client_tools(current):
+                current = await self._client_round(current)
+                if current is None or current.run_status is not RunStatus.RUNNING:
+                    return current
+                current = await self._follow_up(current)
+                if current is None or current.run_status is not RunStatus.RUNNING:
+                    return current
+            current = await self._stream(current)
+            if (
+                current is not None
+                and current.run_status is RunStatus.RUNNING
+                and not self._awaiting_client_tools(current)
+            ):
+                # RUN_FINISHED listed pending calls that are not runnable client tools.
+                self._log.warning("run finished with pending calls that cannot run here")
+                return await self._final_flush(current.with_(run_status=RunStatus.IDLE), [])
+        return current
+
+    @staticmethod
+    def _awaiting_client_tools(conv: ConversationState) -> bool:
+        return any(c.is_client_tool and c.status is ToolCallStatus.RUNNING for c in conv.tool_calls)
+
+    async def _client_round(self, conv: ConversationState) -> ConversationState | None:
+        """Flow B.1-4: run the handlers outside the lock, record results, flush."""
+        running = [
+            c for c in conv.tool_calls if c.is_client_tool and c.status is ToolCallStatus.RUNNING
+        ]
+        to_approve = [c.id for c in running if self._needs_approval(c)]
+        ready = [c for c in running if c.id not in to_approve]
+        if ready:
+            conv = start_client_tool_round(conv, max_rounds=self._settings.max_client_tool_rounds)
+            if conv.run_status is not RunStatus.RUNNING:
+                self._log.error("run failed: %s", ErrorCode.CLIENT_TOOL_LOOP_LIMIT.value)
+                return await self._final_flush(conv, [])
+            self._rounds += 1
+            self._conv = conv
+            self._log.info("client-tool round %d: %d call(s)", conv.client_tool_rounds, len(ready))
+            results = await self._run_handlers(ready)
+            if not isinstance(results, list):
+                return results  # cancelled (flag path) or ownership lost meanwhile
+            for call, (ok, text) in zip(ready, results, strict=True):
+                conv = apply_client_tool_result(conv, call.id, text, is_error=not ok)
+        if to_approve:
+            conv = request_local_approvals(conv, to_approve)
+            self._log.info("waiting for %d local approval(s)", len(to_approve))
+        return await self._final_flush(conv, [])
+
+    def _needs_approval(self, call: ToolCall) -> bool:
+        """Approval-required and not yet approved (an approved call has a local interrupt)."""
+        tool = self._tools.get(call.name)
+        return tool is not None and tool.requires_approval and call.interrupt_id is None
+
+    async def _run_handlers(
+        self, calls: list[ToolCall]
+    ) -> list[tuple[bool, str]] | ConversationState | None:
+        """Run the handlers concurrently; keep checking ownership and cancels (Flow D.3)."""
+        gathered = asyncio.gather(*(self._invoke(c) for c in calls))
+        tick = max(self._settings.flush_interval_ms / 1000, MIN_TICK_S)
+        try:
+            while True:
+                done, _ = await asyncio.wait({gathered}, timeout=tick)
+                if done:
+                    return gathered.result()
+                assert self._conv is not None  # noqa: S101 - set by _client_round
+                outcome = await self._flush(self._conv, [], publish=False)
+                if outcome is not _Ownership.KEPT:
+                    return self._stopped(outcome)
+        finally:
+            if not gathered.done():
+                gathered.cancel()
+                await asyncio.wait({gathered})
+
+    async def _invoke(self, call: ToolCall) -> tuple[bool, str]:
+        tool = self._tools.get(call.name)
+        if tool is None:
+            return False, f"The client tool {call.name!r} is not registered."
+        if call.args is None:
+            return False, "The tool arguments are not valid JSON."
+        timeout = tool.timeout_s
+        if timeout is None:
+            timeout = self._settings.client_tool_timeout_s
+        try:
+            ok, text = await tool.invoke(dict(call.args), timeout)
+        except Exception as exc:  # invoke() returns failures; this is a last resort
+            ok, text = False, f"{type(exc).__name__}: {exc}"
+        if not ok:
+            # The text may quote arguments or handler data: only the name above DEBUG.
+            self._log.warning("client tool %s failed", call.name)
+            self._log.debug("client tool %s failed: %s", call.name, text)
+        return ok, text
+
+    async def _follow_up(self, conv: ConversationState) -> ConversationState | None:
+        """Flow B.5: start the follow-up run in this task, with a new ``run_id``."""
+        follow_up = begin_run(conv, config=conv.config, resume=False)
+        outcome = await self._flush(follow_up, [], publish=True)  # checked against the old run
+        if outcome is not _Ownership.KEPT:
+            return self._stopped(outcome)
+        self._enter_run(follow_up)
+        self._conv = follow_up
+        self._log.info("follow-up run started")
+        return follow_up
 
     def _enter_run(self, conv: ConversationState) -> None:
         if self._run_id:

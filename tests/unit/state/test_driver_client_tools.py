@@ -263,7 +263,7 @@ async def test_REQ_018_3_rejected_client_tool_sends_the_rejection_without_runnin
     assert calls_seen == []
     assert conv.tool_calls[0].status is ToolCallStatus.REJECTED
     sent = [m for m in run.client.inputs[0].messages if m.role == "tool"]
-    assert sent[0].content.startswith("Rejected by the user")
+    assert str(sent[0].content).startswith("Rejected by the user")
     assert conv.run_status is RunStatus.IDLE
 
 

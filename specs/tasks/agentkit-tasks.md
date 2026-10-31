@@ -441,7 +441,7 @@
 - **Done:** `uv run pytest -k "REQ_007" tests/unit/state -q` passes, including
   `test_REQ_007_1_flag_path_with_silent_upstream_under_1s`.
 
-### T-028 · `RunDriver`: client-tool rounds · TF `[ ]`
+### T-028 · `RunDriver`: client-tool rounds · TF `[x] 2026-10-31`
 - **What:** TD Flow B and Flow C.4:
   - after `RUN_FINISHED`, run the client tools that are `running`, concurrently, outside
     the lock;

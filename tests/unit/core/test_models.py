@@ -84,15 +84,22 @@ def test_DM_6_enums_have_the_normative_values(enum: Any, values: set[str]) -> No
 
 def test_DM_2_R3_str_enums_compare_equal_to_strings() -> None:
     """DM R-3, API §5.5: ``run_status == "running"`` and ``== RunStatus.RUNNING`` both hold."""
-    assert RunStatus.RUNNING == "running"
-    assert ToolCallStatus.PENDING_APPROVAL == "pending_approval"
+    running: str = RunStatus.RUNNING
+    pending: str = ToolCallStatus.PENDING_APPROVAL
+    assert running == "running"
+    assert pending == "pending_approval"
+    assert RunStatus("running") is RunStatus.RUNNING
 
 
-@pytest.mark.parametrize("value", SAMPLES, ids=_ids)
+PUBLIC_SAMPLES = [v for v in SAMPLES if not isinstance(v, ReducerConfig)]
+
+
+@pytest.mark.parametrize("value", PUBLIC_SAMPLES, ids=_ids)
 def test_DM_2_R3_values_serialize_enums_as_plain_strings(value: Any) -> None:
-    """DM R-3: ``json.dumps(asdict(...))`` writes enum values, not ``Enum.X`` reprs."""
-    if isinstance(value, ReducerConfig):
-        pytest.skip("ReducerConfig is internal and holds a frozenset")
+    """DM R-3: ``json.dumps(asdict(...))`` writes enum values, not ``Enum.X`` reprs.
+
+    ``ReducerConfig`` is excluded: it is internal and holds a ``frozenset``.
+    """
     text = json.dumps(dataclasses.asdict(value))
     assert "MessageRole." not in text
     assert "ToolCallStatus." not in text

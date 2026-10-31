@@ -1,8 +1,9 @@
 name: Release
 
-# A `v*` tag builds the sdist and wheel and publishes them through trusted publishing
-# (no stored token, REQ-032.2). Pre-release tags (`a`, `b`, `rc`) go to TestPyPI; final
-# tags go to PyPI through the `pypi` environment, which requires a reviewer.
+# A `v*` tag builds the sdist and wheel and publishes them to PyPI through trusted
+# publishing (no stored token, REQ-032.2). Pre-release tags (`a`, `b`, `rc`) and final tags
+# both go to PyPI through the `pypi` environment, which requires a reviewer. There is no
+# TestPyPI step (Plan v1.2).
 
 on:
   push:
@@ -17,25 +18,17 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    outputs:
-      prerelease: ${{ steps.version.outputs.prerelease }}
     steps:
       - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.13"
       - name: Check that the tag matches __version__
-        id: version
         run: |
           version="$(grep -Po '^__version__ = "\K[^"]+' src/reflex_agentkit/__init__.py)"
           if [ "v${version}" != "${GITHUB_REF_NAME}" ]; then
             echo "::error::tag ${GITHUB_REF_NAME} does not match __version__ ${version}"
             exit 1
-          fi
-          if [[ "${version}" =~ (a|b|rc)[0-9]+$ ]]; then
-            echo "prerelease=true" >> "${GITHUB_OUTPUT}"
-          else
-            echo "prerelease=false" >> "${GITHUB_OUTPUT}"
           fi
       - run: uv build
       - uses: actions/upload-artifact@v7
@@ -44,30 +37,8 @@ jobs:
           path: dist/
           if-no-files-found: error
 
-  testpypi:
-    needs: build
-    if: needs.build.outputs.prerelease == 'true'
-    runs-on: ubuntu-latest
-    environment:
-      name: testpypi
-      url: https://test.pypi.org/p/reflex-agentkit
-    permissions:
-      id-token: write
-    steps:
-      - uses: actions/download-artifact@v8
-        with:
-          name: dist
-          path: dist/
-      - uses: astral-sh/setup-uv@v7
-      - run: >-
-          uv publish --trusted-publishing always
-          --publish-url https://test.pypi.org/legacy/
-          --check-url https://test.pypi.org/simple/
-          dist/*
-
   pypi:
     needs: build
-    if: needs.build.outputs.prerelease == 'false'
     runs-on: ubuntu-latest
     environment:
       name: pypi

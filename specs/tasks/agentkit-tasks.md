@@ -634,21 +634,20 @@
   green. A manual check, `ANTHROPIC_API_KEY=… uv run --package quickstart reflex run`,
   streams, shows `get_weather`, and opens the approval dialog for `book_hotel`.
 
-### T-041 · Release workflow and `0.1.0a1` on TestPyPI `[!]`
-> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publishers on PyPI and TestPyPI and the GitHub environments `testpypi` and `pypi` (none exist yet). Then push the tag `v0.1.0a1` and run the TestPyPI walkthrough.
+### T-041 · Release workflow and `0.1.0a1` on PyPI `[!]`
+> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). No TestPyPI (maintainer decision, Plan v1.2). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publisher on PyPI and the GitHub environment `pypi` (it does not exist yet). Then push the tag `v0.1.0a1` and run the walkthrough against PyPI.
 
 - **What:** `.github/workflows/release.yml`:
   - on tag `v*`: `uv build` → `uv publish --trusted-publishing always`;
-  - `a`/`rc` tags go to the `testpypi` environment
-    (`--publish-url https://test.pypi.org/legacy/`); final tags go to `pypi` (environment
-    with required reviewers).
+  - every tag, pre-release or final, goes to PyPI through the `pypi` environment (with
+    required reviewers).
 
   Bump to `0.1.0a1`, add a CHANGELOG entry, tag. Then the fresh-env walkthrough from Plan
-  WP5 "Done", with the explicit TestPyPI index.
+  WP5 "Done", with the exact `==0.1.0a1` pin from PyPI.
 - **REQ:** REQ-032.2 · PRD §4.2
 - **Files:** `.github/workflows/release.yml`, `src/reflex_agentkit/__init__.py`, `CHANGELOG.md`
 - **Depends on:** T-040 · **Prerequisite:** the pending trusted publishers registered (Plan §2)
-- **Done:** `0.1.0a1` is visible on test.pypi.org. The walkthrough takes < 5 min from an
+- **Done:** `0.1.0a1` is visible on pypi.org as a pre-release. The walkthrough takes < 5 min from an
   empty dir to a working chat (timed, noted in the execution log).
 
 ---
@@ -784,7 +783,7 @@
   PR title).
 
 ### T-052 · `0.1.0rc1` → `v0.1.0` `[ ]`
-- **What:** bump to `0.1.0rc1` → TestPyPI → fresh-env walkthrough (the PydanticAI and
+- **What:** bump to `0.1.0rc1` → PyPI (pre-release) → fresh-env walkthrough (the PydanticAI and
   LangGraph dojos plus the quickstart) → fix anything found → CHANGELOG `[0.1.0]` → bump
   to `0.1.0` → tag `v0.1.0` → approve the `pypi` environment → verify
   `uv add reflex-agentkit` from PyPI.

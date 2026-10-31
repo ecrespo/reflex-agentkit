@@ -6,7 +6,7 @@ AG-UI-compatible agent. The production UI layer your agent was missing — no Ty
 no Streamlit.
 
 > **Status: pre-alpha, under active development.** Nothing is published on PyPI yet; the
-> first pre-release (`0.1.0a1`, on TestPyPI) is built and waiting for the release setup.
+> first pre-release (`0.1.0a1`, on PyPI) is built and waiting for the release setup.
 > The pure core, the agent clients, the Reflex state engine (`AgentState`), the chat
 > components and both adapters (PydanticAI and LangGraph) are implemented and tested.
 
@@ -92,7 +92,7 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | ✅ done |
 | WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation, client-tool rounds | ✅ done |
 | WP4 — PydanticAI adapter | `PydanticAIAgent`: a PydanticAI agent as an `AGUIAgent`, tool approvals, client tools | ✅ done |
-| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (TestPyPI publish pending the release setup) |
+| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (PyPI publish pending the release setup) |
 | WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval`, legacy interrupts | ✅ done |
 | WP7 — Dojo examples | The five AG-UI Dojo demos for PydanticAI and LangGraph | 🚧 next |
 | WP8 — Hardening, docs, release | Documentation site, `0.1.0` on PyPI | ⏳ planned |

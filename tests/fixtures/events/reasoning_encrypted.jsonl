@@ -1,0 +1,9 @@
+{"fixture": "reasoning_encrypted", "reqs": ["REQ-011.2"], "start": {"user_text": "think"}, "expect": {"run_status": "idle", "reasoning": [{"id": "r1", "assistant_message_id": "m1", "content": "", "encrypted_value": "opaque-signature"}], "messages.1": {"id": "m1", "reasoning": "", "content": "Hi"}, "diagnostics.codes": ["IGNORED_EVENT"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "REASONING_MESSAGE_START", "messageId": "r1", "role": "reasoning"}
+{"type": "REASONING_MESSAGE_END", "messageId": "r1"}
+{"type": "REASONING_ENCRYPTED_VALUE", "subtype": "message", "entityId": "r1", "encryptedValue": "opaque-signature"}
+{"type": "REASONING_ENCRYPTED_VALUE", "subtype": "tool-call", "entityId": "c1", "encryptedValue": "not-kept-in-v0.1"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m1"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": "Hi"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

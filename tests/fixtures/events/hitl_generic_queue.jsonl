@@ -1,0 +1,8 @@
+{"fixture": "hitl_generic_queue", "reqs": ["REQ-014.2", "REQ-014.3", "REQ-014.4", "REQ-013.5"], "start": {"user_text": "plan"}, "expect": {"run_status": "running", "interrupts": [], "resume": [{"interrupt_id": "i1", "status": "resolved", "payload": "Lisbon"}, {"interrupt_id": "i2", "status": "resolved", "payload": {"ok": true}}], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "i1", "reason": "human_input", "message": "Which city?"}, {"id": "i2", "reason": "confirm", "message": "Sure?"}]}}
+{"$command": "respond_to_interrupt", "payload": "Lisbon"}
+{"$command": "respond_to_interrupt", "payload": "{\"ok\": true}"}
+{"$command": "begin_run", "resume": true}
+{"$command": "respond_to_interrupt", "payload": "ignored: nothing is pending"}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run2"}

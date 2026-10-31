@@ -1,0 +1,8 @@
+{"fixture": "custom_ring", "reqs": ["REQ-010.5"], "config": {"custom_events_limit": 3}, "start": {"user_text": "go"}, "expect": {"run_status": "idle", "custom_events": [{"name": "progress", "value": 2, "run_id": "$run"}, {"name": "progress", "value": 3, "run_id": "$run"}, {"name": "done", "value": {"ok": true}, "run_id": "$run"}], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "CUSTOM", "name": "progress", "value": 0}
+{"type": "CUSTOM", "name": "progress", "value": 1}
+{"type": "CUSTOM", "name": "progress", "value": 2}
+{"type": "CUSTOM", "name": "progress", "value": 3}
+{"type": "CUSTOM", "name": "done", "value": {"ok": true}}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

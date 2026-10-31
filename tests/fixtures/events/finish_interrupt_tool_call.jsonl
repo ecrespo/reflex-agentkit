@@ -1,0 +1,6 @@
+{"fixture": "finish_interrupt_tool_call", "reqs": ["REQ-004.2", "REQ-013.1"], "start": {"user_text": "book the hotel"}, "expect": {"run_status": "awaiting_input", "tool_calls": [{"id": "c1", "name": "book_hotel", "status": "pending_approval", "interrupt_id": "int-c1", "args": {"city": "Lisbon"}}], "interrupts": [{"id": "int-c1", "reason": "tool_call", "tool_call_id": "c1", "message": "", "is_local": false, "response_schema": {"type": "object", "properties": {"approved": {"type": "boolean"}, "editedArgs": {"type": "object"}, "reason": {"type": "string"}}, "required": ["approved"]}}], "answers": {}, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "book_hotel", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"city\": \"Lisbon\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "int-c1", "reason": "tool_call", "toolCallId": "c1", "responseSchema": {"type": "object", "properties": {"approved": {"type": "boolean"}, "editedArgs": {"type": "object"}, "reason": {"type": "string"}}, "required": ["approved"]}}]}}

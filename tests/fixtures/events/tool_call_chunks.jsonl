@@ -1,0 +1,9 @@
+{"fixture": "tool_call_chunks", "reqs": ["REQ-009.5"], "start": {"user_text": "two lookups"}, "expect": {"run_status": "idle", "tool_calls": [{"id": "c1", "name": "lookup", "status": "running", "args": {"q": "a"}}, {"id": "c2", "name": "lookup", "status": "running", "args": {"q": "b"}}], "messages.1": {"id": "m1", "role": "assistant", "content": "Checking", "tool_call_ids": ["c1", "c2"]}, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m1"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": "Checking"}
+{"type": "TEXT_MESSAGE_END", "messageId": "m1"}
+{"type": "TOOL_CALL_CHUNK", "toolCallId": "c1", "toolCallName": "lookup", "parentMessageId": "m1", "delta": "{\"q\": "}
+{"type": "TOOL_CALL_CHUNK", "delta": "\"a\"}"}
+{"type": "TOOL_CALL_CHUNK", "toolCallId": "c2", "toolCallName": "lookup", "parentMessageId": "m1", "delta": "{\"q\": \"b\"}"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

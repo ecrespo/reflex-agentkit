@@ -1,0 +1,14 @@
+{"fixture": "reasoning_stream", "reqs": ["REQ-011.1"], "start": {"user_text": "think"}, "expect": {"run_status": "idle", "reasoning": [{"id": "r1", "assistant_message_id": "m1", "content": "Let me think.", "encrypted_value": null}, {"id": "r2", "assistant_message_id": "m1", "content": "Done."}], "messages.length": 2, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "REASONING_START", "messageId": "r1"}
+{"type": "REASONING_MESSAGE_START", "messageId": "r1", "role": "reasoning"}
+{"type": "REASONING_MESSAGE_CONTENT", "messageId": "r1", "delta": "Let me "}
+{"type": "REASONING_MESSAGE_CONTENT", "messageId": "r1", "delta": "think."}
+{"type": "REASONING_MESSAGE_END", "messageId": "r1"}
+{"type": "REASONING_END", "messageId": "r1"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m1"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": "Answer"}
+{"type": "TEXT_MESSAGE_END", "messageId": "m1"}
+{"type": "REASONING_MESSAGE_CHUNK", "messageId": "r2", "delta": "Do"}
+{"type": "REASONING_MESSAGE_CHUNK", "delta": "ne."}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

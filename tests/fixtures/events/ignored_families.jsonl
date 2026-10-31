@@ -1,0 +1,9 @@
+{"fixture": "ignored_families", "reqs": ["REQ-012.1"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "messages.length": 1, "shared_state": {}, "diagnostics.codes": ["IGNORED_EVENT", "IGNORED_EVENT", "IGNORED_EVENT", "IGNORED_EVENT", "IGNORED_EVENT", "IGNORED_EVENT"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "ACTIVITY_SNAPSHOT", "messageId": "a1", "activityType": "plan", "content": {"steps": []}}
+{"type": "ACTIVITY_DELTA", "messageId": "a1", "activityType": "plan", "patch": [{"op": "add", "path": "/steps/-", "value": "x"}]}
+{"type": "SUBAGENT_STARTED", "subagentRunId": "s1", "name": "researcher"}
+{"type": "SUBAGENT_FINISHED", "subagentRunId": "s1"}
+{"type": "SUBAGENT_ERROR", "subagentRunId": "s2", "message": "failed"}
+{"type": "RAW", "event": {"vendor": "payload"}, "source": "provider"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

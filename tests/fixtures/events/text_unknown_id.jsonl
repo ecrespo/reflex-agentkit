@@ -1,0 +1,6 @@
+{"fixture": "text_unknown_id", "reqs": ["REQ-008.5"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "messages.length": 2, "messages.1": {"id": "ghost", "role": "assistant", "content": "surprise", "streaming": false}, "diagnostics.codes": ["IMPLICIT_MESSAGE", "UNKNOWN_MESSAGE_ID"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "ghost", "delta": "surprise"}
+{"type": "TEXT_MESSAGE_END", "messageId": "ghost"}
+{"type": "TEXT_MESSAGE_END", "messageId": "never-started"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

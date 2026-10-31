@@ -1,0 +1,6 @@
+{"fixture": "finish_with_pending_client_tool", "reqs": ["REQ-004.1", "REQ-018.2"], "config": {"client_tool_names": ["pick_date"]}, "start": {"user_text": "book"}, "expect": {"run_status": "running", "tool_calls": [{"id": "c1", "name": "pick_date", "status": "running", "is_client_tool": true}], "interrupts": [], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "pick_date", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "success", "pendingToolCallIds": ["c1"]}}

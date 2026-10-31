@@ -1,0 +1,5 @@
+{"fixture": "unknown_type", "reqs": ["REQ-012.2"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "diagnostics.codes": ["UNKNOWN_EVENT_TYPE", "UNKNOWN_EVENT_TYPE"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "THINKING_START", "title": "deprecated"}
+{"type": "SOME_FUTURE_EVENT", "payload": 1}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

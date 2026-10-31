@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# JetBrains
+.idea/
+
+# reflex-agentkit
+.venv/
+.web/
+dist/
+.coverage

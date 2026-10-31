@@ -1,0 +1,8 @@
+{"fixture": "client_tool_marked", "reqs": ["REQ-009.3", "REQ-018.2"], "config": {"client_tool_names": ["pick_date"]}, "start": {"user_text": "book it"}, "expect": {"run_status": "running", "tool_calls": [{"id": "c1", "name": "pick_date", "status": "running", "is_client_tool": true, "args": {"month": "May"}}, {"id": "c2", "name": "get_weather", "status": "running", "is_client_tool": false}], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "pick_date", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"month\": \"May\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "TOOL_CALL_START", "toolCallId": "c2", "toolCallName": "get_weather", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c2", "delta": "{}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c2"}

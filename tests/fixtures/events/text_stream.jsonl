@@ -1,0 +1,7 @@
+{"fixture": "text_stream", "reqs": ["REQ-008.1", "REQ-008.2", "REQ-008.3"], "start": {"user_text": "hi"}, "expect": {"run_status": "idle", "messages.length": 2, "messages.1": {"id": "m1", "role": "assistant", "content": "Hello there!", "streaming": false}, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m1", "role": "assistant"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": "Hello"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m1", "delta": " there!"}
+{"type": "TEXT_MESSAGE_END", "messageId": "m1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

@@ -1,0 +1,5 @@
+{"fixture": "finish_mixed_interrupts", "reqs": ["REQ-013.1", "REQ-014.1", "REQ-014.3"], "start": {"user_text": "go"}, "expect": {"run_status": "awaiting_input", "tool_calls": [{"id": "c1", "status": "pending_approval", "interrupt_id": "int-c1"}], "interrupts": [{"id": "int-c1", "tool_call_id": "c1"}, {"id": "i1", "reason": "human_input", "tool_call_id": null}, {"id": "int-ghost", "reason": "tool_call", "tool_call_id": null}], "diagnostics.codes": ["UNKNOWN_TOOL_CALL_ID", "DUPLICATE_ID"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "delete_file", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "int-c1", "reason": "tool_call", "toolCallId": "c1"}, {"id": "i1", "reason": "human_input", "message": "Why?"}, {"id": "int-ghost", "reason": "tool_call", "toolCallId": "ghost"}, {"id": "i1", "reason": "again"}]}}

@@ -1,0 +1,9 @@
+{"fixture": "tool_call_happy_path", "reqs": ["REQ-009.1", "REQ-009.2", "REQ-009.3", "REQ-009.4"], "config": {"client_tool_names": []}, "start": {"user_text": "weather in Lisbon?"}, "expect": {"run_status": "idle", "tool_calls": [{"id": "c1", "name": "get_weather", "status": "done", "args": {"city": "Lisbon"}, "result": "sunny", "parent_message_id": "m1", "is_client_tool": false}], "messages.length": 3, "messages.1": {"id": "m1", "role": "assistant", "tool_call_ids": ["c1"]}, "messages.2": {"id": "t1", "role": "tool", "tool_call_id": "c1", "content": "sunny"}, "dirty_tool_args": [], "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "get_weather", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{\"city\": \"Lis"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "bon\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "TOOL_CALL_RESULT", "toolCallId": "c1", "messageId": "t1", "content": "sunny"}
+{"type": "TOOL_CALL_RESULT", "toolCallId": "c1", "messageId": "t1", "content": "sunny"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

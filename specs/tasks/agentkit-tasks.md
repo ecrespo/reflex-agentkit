@@ -251,7 +251,7 @@
 - **Done:** `uv run pytest -k "REQ_004 or REQ_013_1 or REQ_014" -q` passes. INV-4 and
   INV-6 hold.
 
-### T-015 · Commands · TF `[ ]`
+### T-015 · Commands · TF `[x] 2026-10-31`
 - **What:** `core/commands.py`:
   - `begin_run(conv, *, user_text=None, resume=False, config)`: new `run_id`, lazy
     `thread_id`, `last_run_ids`, clears error, consumes `abandoned_interrupt_ids`;

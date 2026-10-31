@@ -450,3 +450,24 @@ def test_REQ_013_3_edited_args_payload_is_json_serializable() -> None:
     """API §7.4: the recorded payload is plain JSON."""
     conv = apply_approval(_paused(_approval(), calls=(_pending_call(),)), "c1", {"n": [1]})
     json.dumps(conv.answers["int-c1"].payload)
+
+
+@pytest.mark.parametrize("edited", ['{"n": NaN}', {"x": {1, 2}}], ids=["nan", "unserializable"])
+def test_REQ_013_7_non_json_edits_are_rejected(edited: object) -> None:
+    """REQ-013.7: NaN and values JSON cannot encode are not valid edited arguments."""
+    conv = apply_approval(_paused(_approval(), calls=(_pending_call(),)), "c1", edited)
+    assert conv.error_code is ErrorCode.INVALID_EDITED_ARGS
+
+
+def test_REQ_014_2_unserializable_response_is_ignored_with_a_warning() -> None:
+    """TD §6: a response JSON cannot encode is ignored with a warning."""
+    conv = apply_interrupt_response(_paused(_generic("i1")), {1, 2})
+    assert conv.answers == {}
+    assert [d.level for d in conv.diagnostics] == ["warning"]
+
+
+def test_REQ_013_6_commands_outside_a_pause_are_ignored() -> None:
+    """REQ-013.6: approvals and responses apply only while ``awaiting_input``."""
+    conv = _paused(_approval(), calls=(_pending_call(),)).with_(run_status=RunStatus.RUNNING)
+    assert apply_approval(conv, "c1") is conv
+    assert apply_interrupt_response(conv, "x") is conv

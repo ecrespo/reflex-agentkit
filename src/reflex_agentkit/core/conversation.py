@@ -53,6 +53,7 @@ class ConversationState(TolerantPickle):
     interrupts: tuple[OpenInterrupt, ...] = ()
     answers: dict[str, InterruptAnswer] = dataclasses.field(default_factory=dict)
     abandoned_interrupt_ids: tuple[str, ...] = ()
+    resume: tuple[InterruptAnswer, ...] = ()
     custom_events: tuple[CustomEventRecord, ...] = ()
     client_tool_rounds: int = 0
     last_run_ids: tuple[str, ...] = ()

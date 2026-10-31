@@ -14,3 +14,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `ToolCallStatus` enums, the value types (`ChatMessage`, `ToolCall`, `PendingInterrupt`,
   `CustomEventRecord`, `Diagnostic`) and the `ConversationState` aggregate, all with
   version-tolerant pickling.
+- `reflex_agentkit.core.reducer`: the pure, total `reduce(state, event)` over all 31
+  AG-UI 1.0 event types (lifecycle and `RUN_FINISHED` outcomes, text, tool calls,
+  shared state, messages snapshots, reasoning, custom events) and `parse_event`, with
+  diagnostics instead of exceptions.
+- `reflex_agentkit.core.commands`: `begin_run`, `apply_approval` (with edited arguments),
+  `apply_rejection`, `apply_interrupt_response`, `apply_cancel`,
+  `apply_client_tool_result`, `all_answered`, `resume_entries` and `new_thread`.
+- JSON Lines event fixtures and a replay runner that checks the state invariants after
+  every step.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import dataclasses
+
 import pytest
 from ag_ui.core import (
     BaseEvent,
@@ -213,6 +215,20 @@ def test_REQ_009_4_result_completes_the_call_and_appends_a_tool_message() -> Non
         "c1",
         "sunny",
     )
+
+
+@pytest.mark.parametrize("terminal", [ToolCallStatus.REJECTED, ToolCallStatus.ERROR])
+def test_API_4_6_result_for_a_terminal_call_keeps_its_status(terminal: ToolCallStatus) -> None:
+    """API §4.6: ``rejected`` and ``error`` are terminal; a later RESULT is recorded only.
+
+    PydanticAI answers a rejected approval with a RESULT carrying the denial text.
+    """
+    conv = _apply(_started(), _start(), ToolCallEndEvent(tool_call_id="c1"))
+    conv = conv.with_(tool_calls=(dataclasses.replace(_call(conv), status=terminal),))
+    conv = _apply(conv, ToolCallResultEvent(tool_call_id="c1", message_id="t1", content="denied"))
+    assert _call(conv).status is terminal
+    assert _call(conv).result == "denied"
+    assert conv.messages[-1].content == "denied"
 
 
 def test_REQ_009_4_result_message_is_deduplicated_by_message_id() -> None:

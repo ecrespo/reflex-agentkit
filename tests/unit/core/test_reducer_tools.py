@@ -316,3 +316,33 @@ def test_REQ_004_3_run_error_fails_calls_still_streaming() -> None:
     """REQ-004.3, INV-5: a failed run leaves no call streaming."""
     conv = _apply(_started(), _start(), RunErrorEvent(message="boom"))
     assert _call(conv).status is ToolCallStatus.ERROR
+
+
+def test_REQ_009_4_multimodal_result_is_flattened_to_text() -> None:
+    """REQ-009.4, DM §7.1 v1.3: text parts are kept, other parts become placeholders."""
+    result = ToolCallResultEvent.model_validate(
+        {
+            "toolCallId": "c1",
+            "messageId": "t1",
+            "content": [
+                {"type": "text", "text": "Here: "},
+                {"type": "image", "source": {"type": "url", "value": "https://x/y.png"}},
+            ],
+        }
+    )
+    conv = _apply(_started(), _start(), ToolCallEndEvent(tool_call_id="c1"), result)
+    assert _call(conv).result == "Here: [image]"
+    assert conv.messages[-1].content == "Here: [image]"
+
+
+def test_REQ_009_5_id_less_chunk_continues_the_last_streaming_call() -> None:
+    """REQ-009.5: an ID-less chunk skips finished calls and feeds the open one."""
+    conv = _apply(
+        _started(),
+        _start("c1"),
+        _start("c2"),
+        ToolCallEndEvent(tool_call_id="c2"),
+        ToolCallChunkEvent(delta="{}"),
+    )
+    assert _call(conv, "c1").args_text == "{}"
+    assert _call(conv, "c2").args_text == ""

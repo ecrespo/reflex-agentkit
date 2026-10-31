@@ -13,6 +13,7 @@ new upstream type never needs a code change to stay safe.
 from __future__ import annotations
 
 import dataclasses
+import json
 from collections.abc import Callable, Mapping
 from typing import Any
 
@@ -29,6 +30,11 @@ from ag_ui.core import (
     TextMessageContentEvent,
     TextMessageEndEvent,
     TextMessageStartEvent,
+    ToolCallArgsEvent,
+    ToolCallChunkEvent,
+    ToolCallEndEvent,
+    ToolCallResultEvent,
+    ToolCallStartEvent,
 )
 from pydantic import TypeAdapter, ValidationError
 
@@ -39,12 +45,14 @@ from reflex_agentkit.core.models import (
     Diagnostic,
     DiagnosticCode,
     DiagnosticLevel,
+    JsonObject,
     MessageRole,
     RunStatus,
+    ToolCall,
     ToolCallStatus,
 )
 
-__all__ = ["HANDLED_EVENT_TYPES", "parse_event", "reduce"]
+__all__ = ["HANDLED_EVENT_TYPES", "INVALID_TOOL_ARGUMENTS", "parse_event", "reduce"]
 
 Handler = Callable[[ConversationState, Any], ConversationState]
 
@@ -52,6 +60,7 @@ _EVENT_ADAPTER: TypeAdapter[Any] = TypeAdapter(Event)
 _KNOWN_TYPES = frozenset(member.value for member in EventType)
 
 INCOMPLETE_TOOL_CALL = "The run ended before the tool call's arguments were complete."
+INVALID_TOOL_ARGUMENTS = "Invalid tool arguments: the arguments are not a valid JSON object."
 
 # REQ-012.1: accepted, never rendered in v0.1.
 _IGNORED: frozenset[str] = frozenset(
@@ -84,8 +93,12 @@ def _diag(
     return conv.with_(diagnostics=(*conv.diagnostics, diagnostic))
 
 
-def _close_streams(conv: ConversationState) -> ConversationState:
-    """End every open stream when the run ends (REQ-008.6, INV-5)."""
+def _close_streams(conv: ConversationState, *, finished: bool) -> ConversationState:
+    """End every open stream when the run ends (REQ-008.6, REQ-009.5, INV-5).
+
+    On ``RUN_FINISHED`` a call still streaming gets its implicit END (chunk-fed calls
+    have no explicit one). On ``RUN_ERROR`` it fails as incomplete.
+    """
     changes: dict[str, Any] = {}
     if any(m.streaming for m in conv.messages):
         changes["messages"] = tuple(
@@ -93,11 +106,18 @@ def _close_streams(conv: ConversationState) -> ConversationState:
         )
     if any(c.status is ToolCallStatus.STREAMING for c in conv.tool_calls):
         changes["tool_calls"] = tuple(
-            dataclasses.replace(c, status=ToolCallStatus.ERROR, result=INCOMPLETE_TOOL_CALL)
+            (
+                _end_call(c)
+                if finished
+                else dataclasses.replace(
+                    c, status=ToolCallStatus.ERROR, result=INCOMPLETE_TOOL_CALL
+                )
+            )
             if c.status is ToolCallStatus.STREAMING
             else c
             for c in conv.tool_calls
         )
+        changes["dirty_tool_args"] = frozenset()
     return conv.with_(**changes) if changes else conv
 
 
@@ -140,12 +160,12 @@ def _run_finished(conv: ConversationState, event: RunFinishedEvent) -> Conversat
     """REQ-004.1: the run completes; open streams are closed."""
     if event.run_id not in conv.last_run_ids:
         return _stale(conv, event.run_id, EventType.RUN_FINISHED.value)
-    return _close_streams(conv).with_(run_status=RunStatus.IDLE)
+    return _close_streams(conv, finished=True).with_(run_status=RunStatus.IDLE)
 
 
 def _run_error(conv: ConversationState, event: RunErrorEvent) -> ConversationState:
     """REQ-004.3: the run failed; the content streamed so far is kept."""
-    return _close_streams(conv).with_(
+    return _close_streams(conv, finished=False).with_(
         run_status=RunStatus.ERROR, error=event.message, error_code=ErrorCode.AGENT_RUN_ERROR
     )
 
@@ -269,6 +289,226 @@ def _text_chunk(conv: ConversationState, event: TextMessageChunkEvent) -> Conver
     return _append_message(conv, msg)
 
 
+# --- tool calls ----------------------------------------------------------------------------
+
+
+def _parse_args(text: str) -> JsonObject | None:
+    """Parse accumulated args; an empty text is ``{}``. Non-objects are invalid."""
+    if not text.strip():
+        return {}
+    try:
+        value = json.loads(text)
+    except ValueError:
+        return None
+    return value if isinstance(value, dict) else None
+
+
+def _end_call(call: ToolCall) -> ToolCall:
+    """REQ-009.3, REQ-009.7: the args are complete; parse them and hand the call over."""
+    args = _parse_args(call.args_text)
+    if args is None:
+        return dataclasses.replace(call, status=ToolCallStatus.ERROR, result=INVALID_TOOL_ARGUMENTS)
+    return dataclasses.replace(call, args=args, status=ToolCallStatus.RUNNING)
+
+
+def _replace_call(conv: ConversationState, call: ToolCall, **changes: Any) -> ConversationState:
+    index = conv._tool_index[call.id]
+    calls = (*conv.tool_calls[:index], call, *conv.tool_calls[index + 1 :])
+    return conv.with_(tool_calls=calls, **changes)
+
+
+def _unknown_call(
+    conv: ConversationState, call_id: str | None, event_type: str
+) -> ConversationState:
+    return _diag(
+        conv,
+        "warning",
+        DiagnosticCode.UNKNOWN_TOOL_CALL_ID,
+        f"ignored {event_type} for unknown tool call {call_id!r}",
+        event_type,
+    )
+
+
+def _link_parent(
+    conv: ConversationState, call_id: str, parent_id: str | None
+) -> tuple[ConversationState, str]:
+    """Attach the call to its assistant message, creating the message if needed.
+
+    Egress (DM §7.3) re-sends a call inside its assistant message, so every call needs
+    one. Without ``parentMessageId`` the call joins the last message when it is the
+    assistant's; otherwise a message with the deterministic ID ``assistant-<call_id>``
+    is created (the reducer must not generate random IDs).
+    """
+    if parent_id is None:
+        last = conv.messages[-1] if conv.messages else None
+        parent_id = (
+            last.id if last is not None and last.role is MessageRole.ASSISTANT else None
+        ) or f"assistant-{call_id}"
+    index = conv._message_index.get(parent_id)
+    if index is None:
+        parent = ChatMessage(id=parent_id, role=MessageRole.ASSISTANT, tool_call_ids=(call_id,))
+        return _append_message(conv, parent), parent_id
+    msg = conv.messages[index]
+    linked = dataclasses.replace(msg, tool_call_ids=(*msg.tool_call_ids, call_id))
+    return _replace_message(conv, index, linked), parent_id
+
+
+def _start_call(
+    conv: ConversationState, call_id: str, name: str, parent_id: str | None, event_type: str
+) -> ConversationState:
+    if call_id in conv._tool_index:
+        return _diag(
+            conv,
+            "warning",
+            DiagnosticCode.DUPLICATE_ID,
+            f"ignored a second start of tool call {call_id!r}",
+            event_type,
+        )
+    conv, parent_id = _link_parent(conv, call_id, parent_id)
+    call = ToolCall(
+        id=call_id,
+        name=name,
+        parent_message_id=parent_id,
+        is_client_tool=name in conv.config.client_tool_names,
+    )
+    return conv.with_(tool_calls=(*conv.tool_calls, call))
+
+
+def _too_large(text: str, limit: int) -> bool:
+    # A UTF-8 character is at most 4 bytes: skip encoding while clearly under the cap.
+    return len(text) * 4 > limit and len(text.encode("utf-8")) > limit
+
+
+def _append_args(
+    conv: ConversationState, call: ToolCall, delta: str, event_type: str
+) -> ConversationState:
+    if call.status is not ToolCallStatus.STREAMING or not delta:
+        return conv
+    text = call.args_text + delta
+    limit = conv.config.max_args_bytes
+    if _too_large(text, limit):
+        failed = dataclasses.replace(
+            call,
+            args_text="",
+            status=ToolCallStatus.ERROR,
+            result=f"Invalid tool arguments: the arguments exceed {limit} bytes.",
+        )
+        conv = _replace_call(conv, failed, dirty_tool_args=conv.dirty_tool_args - {call.id})
+        return _diag(
+            conv,
+            "warning",
+            DiagnosticCode.ARGS_TOO_LARGE,
+            f"tool call {call.id!r} arguments exceed {limit} bytes",
+            event_type,
+        )
+    return _replace_call(
+        conv,
+        dataclasses.replace(call, args_text=text),
+        dirty_tool_args=conv.dirty_tool_args | {call.id},
+    )
+
+
+def _finish_call(conv: ConversationState, call: ToolCall) -> ConversationState:
+    if call.status is not ToolCallStatus.STREAMING:
+        return conv
+    return _replace_call(conv, _end_call(call), dirty_tool_args=conv.dirty_tool_args - {call.id})
+
+
+def _get_call(conv: ConversationState, call_id: str) -> ToolCall | None:
+    index = conv._tool_index.get(call_id)
+    return None if index is None else conv.tool_calls[index]
+
+
+def _tool_start(conv: ConversationState, event: ToolCallStartEvent) -> ConversationState:
+    """REQ-009.1, REQ-018.2: add a streaming call, link its parent, mark client tools."""
+    return _start_call(
+        conv,
+        event.tool_call_id,
+        event.tool_call_name,
+        event.parent_message_id,
+        EventType.TOOL_CALL_START.value,
+    )
+
+
+def _tool_args(conv: ConversationState, event: ToolCallArgsEvent) -> ConversationState:
+    """REQ-009.2: accumulate args; parsing is deferred (``dirty_tool_args``, DM H-3)."""
+    event_type = EventType.TOOL_CALL_ARGS.value
+    call = _get_call(conv, event.tool_call_id)
+    if call is None:
+        return _unknown_call(conv, event.tool_call_id, event_type)
+    return _append_args(conv, call, event.delta, event_type)
+
+
+def _tool_end(conv: ConversationState, event: ToolCallEndEvent) -> ConversationState:
+    """REQ-009.3, REQ-009.7: parse the args; ``running`` or ``error``."""
+    call = _get_call(conv, event.tool_call_id)
+    if call is None:
+        return _unknown_call(conv, event.tool_call_id, EventType.TOOL_CALL_END.value)
+    return _finish_call(conv, call)
+
+
+def _open_call(conv: ConversationState) -> ToolCall | None:
+    """The call an ID-less chunk continues: the last one still streaming."""
+    for call in reversed(conv.tool_calls):
+        if call.status is ToolCallStatus.STREAMING:
+            return call
+    return None
+
+
+def _tool_chunk(conv: ConversationState, event: ToolCallChunkEvent) -> ConversationState:
+    """REQ-009.5: chunks are START (new ID) + ARGS; a new chunk call ENDs the previous one."""
+    event_type = EventType.TOOL_CALL_CHUNK.value
+    delta = event.delta or ""
+    call_id = event.tool_call_id
+    call = _get_call(conv, call_id) if call_id is not None else _open_call(conv)
+    if call is not None:
+        return _append_args(conv, call, delta, event_type)
+    if call_id is None or not event.tool_call_name:
+        return _unknown_call(conv, call_id, event_type)
+    previous = _open_call(conv)
+    if previous is not None:
+        conv = _finish_call(conv, previous)
+    conv = _start_call(conv, call_id, event.tool_call_name, event.parent_message_id, event_type)
+    return _append_args(conv, conv.tool_calls[-1], delta, event_type)
+
+
+def _content_text(content: str | list[Any]) -> str:
+    """Flatten AG-UI 1.0 multimodal tool-result content to text (DM §7.1 v1.3).
+
+    Text parts are concatenated; other parts become ``[<type>]`` placeholders, because
+    v0.1 renders and re-sends tool results as text only.
+    """
+    if isinstance(content, str):
+        return content
+    pieces: list[str] = []
+    for part in content:
+        text = getattr(part, "text", None)
+        pieces.append(text if isinstance(text, str) else f"[{getattr(part, 'type', 'content')}]")
+    return "".join(pieces)
+
+
+def _tool_result(conv: ConversationState, event: ToolCallResultEvent) -> ConversationState:
+    """REQ-009.4: store the result, ``done``, and append the ``tool`` message once."""
+    call = _get_call(conv, event.tool_call_id)
+    if call is None:
+        return _unknown_call(conv, event.tool_call_id, EventType.TOOL_CALL_RESULT.value)
+    content = _content_text(event.content)
+    conv = _finish_call(conv, call)
+    call = conv.tool_calls[conv._tool_index[call.id]]
+    conv = _replace_call(
+        conv, dataclasses.replace(call, status=ToolCallStatus.DONE, result=content)
+    )
+    if event.message_id in conv._message_index:
+        return conv
+    tool_message = ChatMessage(
+        id=event.message_id,
+        role=MessageRole.TOOL,
+        content=content,
+        tool_call_id=call.id,
+    )
+    return _append_message(conv, tool_message)
+
+
 _HANDLERS: dict[str, Handler] = {
     EventType.RUN_STARTED: _run_started,
     EventType.RUN_FINISHED: _run_finished,
@@ -279,6 +519,11 @@ _HANDLERS: dict[str, Handler] = {
     EventType.TEXT_MESSAGE_CONTENT: _text_content,
     EventType.TEXT_MESSAGE_END: _text_end,
     EventType.TEXT_MESSAGE_CHUNK: _text_chunk,
+    EventType.TOOL_CALL_START: _tool_start,
+    EventType.TOOL_CALL_ARGS: _tool_args,
+    EventType.TOOL_CALL_END: _tool_end,
+    EventType.TOOL_CALL_CHUNK: _tool_chunk,
+    EventType.TOOL_CALL_RESULT: _tool_result,
 }
 
 HANDLED_EVENT_TYPES: frozenset[str] = frozenset(_HANDLERS) | _IGNORED

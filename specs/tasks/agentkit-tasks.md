@@ -210,7 +210,7 @@
 - **Done:** `uv run pytest -k REQ_008 -q` passes, and INV-5 holds after the terminal
   event in every fixture.
 
-### T-012 · Reducer: tool calls · TF `[ ]`
+### T-012 · Reducer: tool calls · TF `[x] 2026-10-31`
 - **What:**
   - START/ARGS/END/CHUNK/RESULT. Linking to the parent message. `dirty_tool_args`.
   - Invalid JSON at END → `error`. The 1 MiB cap → `ARGS_TOO_LARGE`.

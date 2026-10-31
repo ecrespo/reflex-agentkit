@@ -7,8 +7,8 @@ no Streamlit.
 
 > **Status: pre-release.** Everything in v0.1 is implemented and tested: the pure core,
 > the agent clients, the Reflex state engine (`AgentState`), the chat components, both
-> adapters (PydanticAI and LangGraph) and the AG-UI Dojo examples. `0.1.0` is being
-> prepared for PyPI. Documentation: [`docs/`](docs/) (`uv run mkdocs serve`).
+> adapters (PydanticAI and LangGraph) and the AG-UI Dojo examples. The release candidate
+> `0.1.0rc1` is ready for PyPI. Documentation: [`docs/`](docs/) (`uv run mkdocs serve`).
 
 ## Why
 

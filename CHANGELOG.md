@@ -94,7 +94,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
-- The package version is `0.1.0a1`, ready for the first pre-release on PyPI.
+- The package version is `0.1.0rc1`, the release candidate for `0.1.0`.
 
 ### Fixed
 

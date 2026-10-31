@@ -290,7 +290,7 @@
   handler that sleeps 0.3 s while the event loop keeps ticking (a concurrent counter
   advances).
 
-### T-016 · `RunInputBuilder` · TF `[ ]`
+### T-016 · `RunInputBuilder` · TF `[x] 2026-10-31`
 - **What:** `core/run_input.py`: the DM §7.3 egress (user, system and developer
   messages, reasoning with encrypted value placed before its assistant message,
   assistant tool calls with edited args, tool messages with error), plus `state`, `tools`

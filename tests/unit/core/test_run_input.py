@@ -47,7 +47,7 @@ def pick_date(day: int) -> str:
 
 def _conv(**changes: object) -> ConversationState:
     conv = begin_run(ConversationState.initial(CONFIG), config=CONFIG, new_id=iter("tr").__next__)
-    return conv.with_(**changes)  # type: ignore[arg-type]
+    return conv.with_(**changes)
 
 
 def test_REQ_001_2_input_carries_thread_run_and_protocol_version() -> None:

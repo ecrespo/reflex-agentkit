@@ -24,5 +24,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `client_tool` / `ClientTool`: client-side tools with a JSON Schema built from the type
   hints, `to_agui_tool()` and `invoke()` (sync handlers in a worker thread, timeout,
   failures returned as tool results).
+- `RunInputBuilder`: builds `RunAgentInput` from the conversation (full history,
+  encrypted reasoning before its assistant message, edited tool arguments, shared state,
+  client tools, resume entries).
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.

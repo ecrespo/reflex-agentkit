@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.4 |
+| **Version** | 1.5 |
 | **Date** | 2026-10-30 |
 | **PRD / API / TD** | [PRD v1.1](../prd/agentkit-v0.1.md) · [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md), all APPROVED |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.0 |
@@ -267,7 +267,7 @@ The other enums use lowercase values as listed.
 |---|---|
 | `messages` | `[m for m in conv.messages if m.role in {user, assistant, tool}]`, with `reasoning` filled from the linked `ReasoningRecord.content` |
 | `tool_calls` | `list(conv.tool_calls)` |
-| `pending_interrupt` | the first `OpenInterrupt` with `reason != "tool_call"`, `not is_local` and no answer → `PendingInterrupt(queue_position, queue_size)`; else `None` |
+| `pending_interrupt` | the first `OpenInterrupt` with `tool_call_id is None` (not an approval), `not is_local` and no answer → `PendingInterrupt(queue_position, queue_size)`; else `None`. An interrupt is an approval exactly when it names a known tool call; a `tool_call` interrupt for an unknown call is stored with `tool_call_id=None` so it stays answerable. |
 | `shared_state`, `shared_state_stale`, `run_status`, `current_step`, `thread_id`, `run_id`, `error`, `error_code` | same-named fields |
 | `custom_events` | `list(conv.custom_events)` |
 | *(never projected)* | `reasoning[*].encrypted_value`, `interrupts`, `answers`, `abandoned_interrupt_ids`, `client_tool_rounds`, `last_run_ids`, `diagnostics`, `dirty_tool_args`, `config`, indexes |
@@ -378,3 +378,4 @@ v0.2 persistence."
 | 1.2 | 2026-10-31 | §8 tolerant pickling via `TolerantPickle.__reduce__` + `_from_state` instead of `__setstate__` (frozen slots dataclasses override a mixin's `__setstate__`); found in T-006 (spec drift rule). |
 | 1.3 | 2026-10-31 | §7.1 `TOOL_CALL_RESULT` multimodal content is flattened to text in v0.1; found in T-012 (spec drift rule). |
 | 1.4 | 2026-10-31 | §7.1 precise ingress rules for `MESSAGES_SNAPSHOT`, `REASONING_ENCRYPTED_VALUE` (AG-UI 1.0 `subtype`/`entity_id`; non-reasoning targets not retained in v0.1) and non-object `STATE_SNAPSHOT`; found in T-013 (spec drift rule). |
+| 1.5 | 2026-10-31 | §7.2 `pending_interrupt` selects interrupts without a linked tool call (an approval for an unknown call would otherwise never be shown and the run would stay paused); found in T-014 (spec drift rule). |

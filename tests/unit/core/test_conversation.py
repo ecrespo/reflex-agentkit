@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 import pickle
+from collections.abc import Callable
 from typing import Any
 
 import pytest
@@ -180,7 +181,7 @@ def _corrupt_index(conv: ConversationState) -> ConversationState:
     return conv
 
 
-VIOLATIONS: dict[str, Any] = {
+VIOLATIONS: dict[str, Callable[[], ConversationState]] = {
     "INV-1": lambda: _conv(messages=(_assistant("m1"), _assistant("m1"))),
     "INV-2": lambda: _corrupt_index(
         _conv(tool_calls=(ToolCall(id="c1", name="a", status=ToolCallStatus.DONE),))
@@ -211,7 +212,15 @@ VIOLATIONS: dict[str, Any] = {
 }
 
 
-@pytest.mark.parametrize("inv", sorted(VIOLATIONS, key=lambda k: int(k.split("-")[1])))
+CHECKED_INVARIANTS = [f"INV-{n}" for n in range(1, 12)]
+
+
+def test_INV_every_checked_invariant_has_a_negative_case() -> None:
+    """DM §4: INV-1…INV-11 each have a hand-built violation below."""
+    assert set(VIOLATIONS) == set(CHECKED_INVARIANTS)
+
+
+@pytest.mark.parametrize("inv", CHECKED_INVARIANTS)
 def test_INV_checker_flags_each_hand_built_violation(inv: str) -> None:
     """DM §4: ``check_invariants`` flags a hand-built violation of each invariant."""
     conv = VIOLATIONS[inv]()

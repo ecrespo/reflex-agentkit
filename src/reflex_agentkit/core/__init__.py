@@ -1,5 +1,6 @@
 """Pure core: AG-UI models, reducer and clients. Must never import reflex or any extra."""
 
+from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import (
     AdapterNotInstalledError,
     AgentHTTPError,
@@ -25,6 +26,7 @@ __all__ = [
     "AgentStreamError",
     "ChatMessage",
     "ConfigurationError",
+    "ConversationState",
     "CustomEventRecord",
     "Diagnostic",
     "ErrorCode",

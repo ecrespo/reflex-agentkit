@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Date** | 2026-10-30 |
 | **PRD / API / TD** | [PRD v1.1](../prd/agentkit-v0.1.md) · [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md), all APPROVED |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.0 |
@@ -251,7 +251,7 @@ The other enums use lowercase values as listed.
 | `RunStartedEvent.run_id` | must be in `last_run_ids`; otherwise `STALE_RUN_EVENT` and the event is skipped |
 | `TextMessageStart/Content/End/Chunk` | `ChatMessage(role=assistant)`; a CHUNK without a known ID creates one |
 | `ToolCallStart/Args/End/Chunk` | `ToolCall`; the parent message's `tool_call_ids` is updated |
-| `ToolCallResultEvent` | `ToolCall.result`, `status=done`, and a new `ChatMessage(role=tool, tool_call_id=…)` (deduplicated by `message_id` if present) |
+| `ToolCallResultEvent` | `ToolCall.result`, `status=done`, and a new `ChatMessage(role=tool, tool_call_id=…)` (deduplicated by `message_id` if present). AG-UI 1.0 `content` may be a list of multimodal parts: v0.1 flattens it to text (text parts concatenated, other parts as `[<type>]` placeholders), so multimodal results are not re-sent to the agent. |
 | `StateSnapshot` / `StateDelta` | `shared_state` / `_patch.apply` (atomic) |
 | `MessagesSnapshot` | rebuild `messages` from AG-UI messages (§7.3); keep `ToolCall` records whose IDs still appear, drop the others; rebuild the indexes |
 | `ReasoningMessage*`, `ReasoningEncryptedValue` | `ReasoningRecord` |
@@ -376,3 +376,4 @@ v0.2 persistence."
 | 1.0 | 2026-10-30 | Initial version |
 | 1.1 | 2026-10-30 | Analyze fixes: cancel-while-paused clears interrupts (A-05); INV-8 one-directional (A-07); `AGENT_EXCEPTION` (A-06); RUN_FINISHED keeps `running` for client-tool rounds (A-02). |
 | 1.2 | 2026-10-31 | §8 tolerant pickling via `TolerantPickle.__reduce__` + `_from_state` instead of `__setstate__` (frozen slots dataclasses override a mixin's `__setstate__`); found in T-006 (spec drift rule). |
+| 1.3 | 2026-10-31 | §7.1 `TOOL_CALL_RESULT` multimodal content is flattened to text in v0.1; found in T-012 (spec drift rule). |

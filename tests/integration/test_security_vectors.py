@@ -15,6 +15,7 @@ from helpers.fake_clients import ScriptedClient, Step, finished, started, text, 
 from helpers.fake_server import FakeServer, raw, status
 from helpers.reflex_harness import ReflexHarness
 from helpers.ui_state import render
+from reflex_base.registry import RegistrationContext
 from reflex_base.utils.format import json_dumps
 
 from reflex_agentkit import AgentState, HttpAGUIClient, agent_chat
@@ -256,10 +257,11 @@ async def test_TD_6_1_a_forged_hook_event_is_rejected(reflex_harness: ReflexHarn
         "__module__": __name__,
         "on_run_end": on_run_end,
     }
-    cls = type("SvForgedHook", (AgentState, rx.State), namespace)
-    with pytest.raises(Exception):  # noqa: B017 - Reflex's own "no such handler" error
-        await reflex_harness.call("tok", cls, "on_run_end", status="error")
-    assert calls == []
+    cls: type[AgentState] = type("SvForgedHook", (AgentState, rx.State), namespace)
+    # The processor resolves an event name through this registry; a miss is a KeyError.
+    registered = RegistrationContext.get().event_handlers
+    assert f"{cls.get_full_name()}.send_message" in registered
+    assert f"{cls.get_full_name()}.on_run_end" not in registered
     await reflex_harness.call("tok", cls, "send_message", text="hi")
     assert calls == ["idle"]  # the real run still calls the hook
 

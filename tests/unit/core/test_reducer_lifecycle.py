@@ -105,6 +105,15 @@ def test_REQ_010_1_run_started_records_the_active_run_id() -> None:
     assert after.diagnostics == ()
 
 
+def test_REQ_010_1_late_run_started_of_an_earlier_run_keeps_the_active_run() -> None:
+    """REQ-010.1, TD Flow A.7: an earlier run of the turn never becomes active again."""
+    first = _running()
+    follow_up = begin_run(first, resume=True, config=CONFIG)
+    after = reduce(follow_up, RunStartedEvent(thread_id=first.thread_id, run_id=first.run_id))
+    assert after == follow_up
+    assert after.run_id == follow_up.run_id
+
+
 def test_REQ_010_2_run_started_for_another_run_is_discarded() -> None:
     """REQ-010.2: a ``RUN_STARTED`` of a run outside this turn is skipped with a warning."""
     conv = _running()
@@ -212,7 +221,7 @@ def test_REQ_012_2_reduce_skips_an_event_type_it_has_no_handler_for() -> None:
         pass
 
     conv = _started()
-    event = _FutureEvent.model_construct(type="FUTURE_EVENT")  # type: ignore[arg-type]
+    event = _FutureEvent.model_construct(type="FUTURE_EVENT")
     after = reduce(conv, event)
     assert after.with_(diagnostics=()) == conv
     assert _codes(after) == [DiagnosticCode.UNKNOWN_EVENT_TYPE]

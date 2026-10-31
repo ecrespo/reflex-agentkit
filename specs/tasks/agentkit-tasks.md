@@ -180,7 +180,7 @@
   input unchanged (atomicity), and a bad path raises `PatchError`. Grep shows
   `import jsonpatch` only in `_patch.py`.
 
-### T-010 · Reducer: dispatch, lifecycle, steps, tolerated and unknown events · TF `[ ]`
+### T-010 · Reducer: dispatch, lifecycle, steps, tolerated and unknown events · TF `[x] 2026-10-31`
 - **What:**
   - `core/reducer.py`: `reduce()` with a dispatch table; the `RUN_STARTED` active-run
     check (`last_run_ids`) and the `STALE_RUN_EVENT` diagnostic; `STEP_*`; `RUN_ERROR`;
@@ -190,6 +190,11 @@
     clients.
   - Fixtures: `lifecycle_happy`, `run_error`, `stale_run_event`, `steps`,
     `ignored_families`, `unknown_type`, `invalid_event`.
+  - *Pulled forward from T-015 (2026-10-31):* the basic `commands.begin_run` (user
+    message, lazy `thread_id`, new `run_id`, `last_run_ids`, status `running`, error
+    cleared). The T-008 runner starts every replay with it, so no fixture can run before
+    it. T-015 completes it (interrupt bookkeeping, `abandoned_interrupt_ids`,
+    `client_tool_rounds`) and adds the other commands.
 - **REQ:** REQ-004.3, REQ-010.1–3, REQ-012.1–3, REQ-005.1
 - **Files:** `src/reflex_agentkit/core/reducer.py`, `tests/fixtures/events/{lifecycle_happy,run_error,stale_run_event,steps,ignored_families,unknown_type,invalid_event}.jsonl`
 - **Depends on:** T-008

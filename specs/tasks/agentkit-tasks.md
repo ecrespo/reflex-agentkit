@@ -400,7 +400,7 @@
   background handler which does `async with self` twice and asserts that the state
   changed. TD §11 is updated in the same PR.
 
-### T-025 · `StateAccess` port, fake and `RunRegistry` `[ ]`
+### T-025 · `StateAccess` port, fake and `RunRegistry` `[x] 2026-10-31`
 - **What:**
   - `state/_driver.py` protocol `StateAccess`: `locked()` async context manager →
     `StateView(conv, cancel_requested, publish(conv), client_token)`.

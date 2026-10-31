@@ -764,7 +764,9 @@
 - **Done:** `uv run pytest -m bench -q` meets the targets (or the DM §5 escape hatch is
   applied and recorded). There are no high or critical findings open.
 
-### T-050 · Documentation site `[ ]`
+### T-050 · Documentation site `[x] 2026-10-31`
+> **Note:** `mkdocs.yml` and `docs/` (home, getting started, concepts, four guides, seven reference pages, security model, troubleshooting); `docs/integration-prompts.md` is excluded from the site. `uv run mkdocs build --strict` passes and runs in a CI `docs` job. The sidecar guide's server code was checked end to end (PydanticAI `AGUIAdapter.dispatch_request` and `add_langgraph_fastapi_endpoint` with `HttpAGUIClient`). The README has the narrative, the feature table and the comparison table; the quickstart test still passes.
+
 - **What:** MkDocs Material: getting started (uv and pip), concepts (runs, threads,
   interrupts, shared state), the API reference (mkdocstrings is **not** added; reference
   pages are hand-written from the API Spec to avoid a new dependency), the sidecar

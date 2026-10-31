@@ -32,7 +32,7 @@
 
 ## WP0 — Foundation and CI
 
-### T-001 · Project skeleton with uv `[ ]`
+### T-001 · Project skeleton with uv `[x] 2026-10-31`
 - **What:** `pyproject.toml` per Plan §1.2 (hatchling, `src/` layout, runtime deps and
   extras per TD DD-001, dependency groups, `[tool.uv] default-groups`, uv workspace with
   `examples/*`). Package skeleton per TD §5.1 with empty modules and `py.typed`.
@@ -47,7 +47,7 @@
   `uv run python -c "import reflex_agentkit, reflex_agentkit.core; print(reflex_agentkit.__version__)"` prints `0.1.0.dev0`.
   `uv build` creates a wheel and an sdist in `dist/`.
 
-### T-002 · Lint, type and test configuration `[ ]`
+### T-002 · Lint, type and test configuration `[x] 2026-10-31`
 - **What:**
   - `[tool.ruff]`: py311 target, line length 100; rules `E,F,W,I,UP,B,SIM,RUF,ASYNC,S`
     (with `S101` allowed in tests).
@@ -69,7 +69,7 @@
   empty core (100 % of nothing). A deliberately untyped function in `core` makes `mypy`
   fail; it is removed before merge.
 
-### T-003 · CI workflow `[ ]`
+### T-003 · CI workflow `[~]` (all jobs pass in a local simulation; waiting for the first PR to show the 6 checks green)
 - **What:** `.github/workflows/ci.yml` with `astral-sh/setup-uv` (cache on) and these
   jobs:
   - `lint`;
@@ -85,7 +85,7 @@
 - **Depends on:** T-002
 - **Done:** a PR shows all 6 checks green (lint, typecheck, test ×3, core-no-extras).
 
-### T-004 · Upstream contract tests (protocol and Reflex) `[P]` `[ ]`
+### T-004 · Upstream contract tests (protocol and Reflex) `[P]` `[x] 2026-10-31`
 - **What:** tests that pin the facts verified in the TD:
   1. `ag_ui.core.EventType` has the 31 v1.0 values and no `THINKING_*`;
      `RunFinishedOutcome` discriminates `success`/`interrupt`/`cancelled`; `ResumeEntry`
@@ -98,7 +98,7 @@
 - **Done:** `uv run pytest tests/contract -q` passes. Each test docstring cites the TD
   section.
 
-### T-005 · Repo hygiene and agent pointers `[P]` `[ ]`
+### T-005 · Repo hygiene and agent pointers `[P]` `[x] 2026-10-31`
 - **What:**
   - `AGENTS.md`: points to `specs/constitution.md` and the standard commands.
   - `CLAUDE.md`: replace the "add commands once pyproject exists" note with Plan §1.1.

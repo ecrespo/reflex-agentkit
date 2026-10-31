@@ -22,7 +22,7 @@ from ag_ui.core import BaseEvent, CustomEvent, RunAgentInput, RunFinishedEvent
 
 from reflex_agentkit.core._log import RunLogger, get_logger
 from reflex_agentkit.core.clients.base import AgentClient
-from reflex_agentkit.core.commands import apply_failure
+from reflex_agentkit.core.commands import apply_cancel, apply_failure
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import AgentHTTPError, AgentStreamError, ErrorCode
 from reflex_agentkit.core.models import CustomEventRecord, ReducerConfig, RunStatus
@@ -76,10 +76,14 @@ class _Failure:
 
 
 class _Ownership(enum.Enum):
-    """The outcome of a lock section (Flow A.7)."""
+    """The outcome of a lock section (Flow A.7, D.3)."""
 
     KEPT = "kept"
     LOST = "lost"
+    CANCELLED = "cancelled"
+
+
+SHUTDOWN_MESSAGE = "the run was interrupted: the server is shutting down"
 
 
 @dataclasses.dataclass(frozen=True, slots=True)
@@ -160,6 +164,7 @@ class RunDriver:
         self._token = client_token
         self._builder = RunInputBuilder(client_tools=tuple(settings.client_tools))
         self._run_id = ""
+        self._conv: ConversationState | None = None
         self._log = RunLogger(_logger, thread_id="", run_id="")
         self._events = 0
         self._flushes = 0
@@ -168,9 +173,17 @@ class RunDriver:
         """Drive the run that ``begin_run`` started on ``conv`` until it ends."""
         started = time.monotonic()
         self._enter_run(conv)
+        self._conv = conv
         final: ConversationState | None = None
         try:
             final = await self._stream(conv)
+        except asyncio.CancelledError:
+            # Flow D.2: the registry path (or a worker shutdown). The driver owns its task
+            # and nothing awaits it, so the cancellation is absorbed, not re-raised.
+            task = asyncio.current_task()
+            if task is not None:
+                task.uncancel()
+            final = await self._after_cancel()
         finally:
             self._registry.unregister(self._token, self._run_id)
         status = "ownership lost" if final is None else final.run_status.value
@@ -248,8 +261,9 @@ class RunDriver:
             try:
                 item = await asyncio.wait_for(queue.get(), max(wait, 0.0))
             except TimeoutError:
-                if await self._flush(conv, custom, publish=dirty) is _Ownership.LOST:
-                    return None
+                outcome = await self._flush(conv, custom, publish=dirty)
+                if outcome is not _Ownership.KEPT:
+                    return self._stopped(outcome)
                 dirty, custom, last_lock = False, [], time.monotonic()
                 continue
             if item is _END:
@@ -267,8 +281,9 @@ class RunDriver:
             if not dirty:
                 dirty, deadline = True, now + interval
             if now >= deadline:
-                if await self._flush(conv, custom, publish=True) is _Ownership.LOST:
-                    return None
+                outcome = await self._flush(conv, custom, publish=True)
+                if outcome is not _Ownership.KEPT:
+                    return self._stopped(outcome)
                 dirty, custom, last_lock = False, [], time.monotonic()
 
     def _apply(
@@ -293,6 +308,7 @@ class RunDriver:
                     )
                 self._log.debug("%s (%s)", diagnostic.message, diagnostic.code.value)
             conv = conv.with_(diagnostics=())
+        self._conv = conv
         return conv
 
     def _is_terminal(self, conv: ConversationState, event: BaseEvent) -> bool:
@@ -303,9 +319,32 @@ class RunDriver:
     async def _final_flush(
         self, conv: ConversationState, custom: list[CustomEventRecord]
     ) -> ConversationState | None:
-        if await self._flush(conv, custom, publish=True) is _Ownership.LOST:
+        self._conv = conv
+        outcome = await self._flush(conv, custom, publish=True)
+        return conv if outcome is _Ownership.KEPT else self._stopped(outcome)
+
+    def _stopped(self, outcome: _Ownership) -> ConversationState | None:
+        """The final conversation after a lock section stopped the run."""
+        return self._conv if outcome is _Ownership.CANCELLED else None
+
+    async def _after_cancel(self) -> ConversationState | None:
+        """The final lock section after the task was cancelled (Flow D.2, Flow E)."""
+        conv = self._conv
+        if conv is None:  # pragma: no cover - run() sets it before anything can cancel
             return None
-        return conv
+        async with self._access.locked() as view:
+            if view.conv.run_id != self._run_id:
+                self._log.info("cancelled after ownership was lost")
+                return None
+            if view.cancel_requested == self._run_id:
+                self._log.info("run cancelled")
+                final = apply_cancel(conv)
+            else:
+                self._log.warning("run interrupted by a worker shutdown")
+                final = apply_failure(conv, ErrorCode.AGENT_STREAM_ERROR, SHUTDOWN_MESSAGE)
+            view.publish(final)
+            self._flushes += 1
+        return final
 
     async def _flush(
         self, conv: ConversationState, custom: list[CustomEventRecord], *, publish: bool
@@ -315,6 +354,13 @@ class RunDriver:
             if view.conv.run_id != self._run_id:
                 self._log.info("ownership lost: the stored conversation changed")
                 return _Ownership.LOST
+            if view.cancel_requested == self._run_id:
+                # Flow D.3: a cancel from another worker; queued events are discarded.
+                self._log.info("run cancelled")
+                self._conv = apply_cancel(conv)
+                view.publish(self._conv)
+                self._flushes += 1
+                return _Ownership.CANCELLED
             if publish:
                 view.publish(conv)
                 self._flushes += 1

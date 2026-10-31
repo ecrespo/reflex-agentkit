@@ -430,7 +430,7 @@
   - `test_REQ_026_2_ownership_lost_stops_and_closes_upstream` passes.
   - `test_REQ_027_2_no_content_above_debug`: no message text in records ≥ INFO.
 
-### T-027 · `RunDriver`: cancellation · TF `[ ]`
+### T-027 · `RunDriver`: cancellation · TF `[x] 2026-10-31`
 - **What:** TD Flow D: the registry path (immediate cancel; `finally` closes the pump and
   the client; final flush with `apply_cancel`) and the flag path (`cancel_requested`
   observed at the next tick ≤ `max(flush_interval, 100 ms)`, even with a silent

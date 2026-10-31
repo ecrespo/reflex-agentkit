@@ -274,7 +274,7 @@
   passes. `resume_entries` output for `hitl_approve_edited` equals
   `[ResumeEntry(interrupt_id="int-c1", status="resolved", payload={"approved": True, "editedArgs": {...}})]`.
 
-### T-017 · Client tools · TF `[P]` `[ ]`
+### T-017 · Client tools · TF `[P]` `[x] 2026-10-31`
 - **What:**
   - `core/tools.py`: the `client_tool` decorator (name, description from the docstring,
     parameters JSON Schema via pydantic `TypeAdapter`/`create_model` from the hints;

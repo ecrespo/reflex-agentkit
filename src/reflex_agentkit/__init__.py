@@ -12,10 +12,12 @@ from typing import Any
 
 from reflex_agentkit.core import (
     AgentKitError,
+    ClientTool,
     ConfigurationError,
     ErrorCode,
     RunStatus,
     ToolCallStatus,
+    client_tool,
 )
 
 __version__ = "0.1.0.dev0"
@@ -25,11 +27,13 @@ _LAZY_EXPORTS: dict[str, str] = {}
 
 __all__ = [
     "AgentKitError",
+    "ClientTool",
     "ConfigurationError",
     "ErrorCode",
     "RunStatus",
     "ToolCallStatus",
     "__version__",
+    "client_tool",
     *_LAZY_EXPORTS,
 ]
 

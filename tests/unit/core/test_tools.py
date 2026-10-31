@@ -78,7 +78,7 @@ class _Opaque:
     pass
 
 
-def _no_hint(x):  # type: ignore[no-untyped-def]  # noqa: ANN001
+def _no_hint(x):  # type: ignore[no-untyped-def]
     return x
 
 
@@ -197,3 +197,37 @@ async def test_REQ_024_2_sync_handler_runs_off_the_event_loop() -> None:
     finally:
         task.cancel()
     assert ticks >= 10
+
+
+def test_REQ_018_1_unresolvable_hints_raise_configuration_error() -> None:
+    """API §6: a hint that cannot be resolved fails at decoration time."""
+
+    def broken(x: Missing) -> None: ...  # type: ignore[name-defined]  # noqa: F821
+
+    with pytest.raises(ConfigurationError):
+        client_tool(broken)
+
+
+def test_REQ_018_1_a_callable_without_a_name_needs_one() -> None:
+    """API §6: the name defaults to ``__name__``; nameless callables must pass ``name``."""
+    import functools
+
+    def add(a: int, b: int) -> int:
+        return a + b
+
+    with pytest.raises(ConfigurationError):
+        client_tool(functools.partial(add, b=1))
+    assert client_tool(name="add_one")(functools.partial(add, b=1)).name == "add_one"
+
+
+async def test_REQ_018_2_sync_callable_returning_an_awaitable_is_awaited() -> None:
+    """API §6: a plain callable that returns a coroutine is awaited."""
+
+    async def inner() -> str:
+        return "ok"
+
+    @client_tool
+    def outer() -> Any:
+        return inner()
+
+    assert await outer.invoke({}, timeout_s=1) == (True, "ok")

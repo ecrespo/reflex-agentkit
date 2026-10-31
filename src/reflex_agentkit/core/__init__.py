@@ -18,6 +18,7 @@ from reflex_agentkit.core.models import (
     ToolCall,
     ToolCallStatus,
 )
+from reflex_agentkit.core.tools import ClientTool, client_tool
 
 __all__ = [
     "AdapterNotInstalledError",
@@ -25,6 +26,7 @@ __all__ = [
     "AgentKitError",
     "AgentStreamError",
     "ChatMessage",
+    "ClientTool",
     "ConfigurationError",
     "ConversationState",
     "CustomEventRecord",
@@ -34,4 +36,5 @@ __all__ = [
     "RunStatus",
     "ToolCall",
     "ToolCallStatus",
+    "client_tool",
 ]

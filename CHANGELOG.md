@@ -21,5 +21,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `reflex_agentkit.core.commands`: `begin_run`, `apply_approval` (with edited arguments),
   `apply_rejection`, `apply_interrupt_response`, `apply_cancel`,
   `apply_client_tool_result`, `all_answered`, `resume_entries` and `new_thread`.
+- `client_tool` / `ClientTool`: client-side tools with a JSON Schema built from the type
+  hints, `to_agui_tool()` and `invoke()` (sync handlers in a worker thread, timeout,
+  failures returned as tool results).
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.

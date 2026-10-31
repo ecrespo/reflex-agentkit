@@ -36,6 +36,7 @@ from reflex_agentkit.core.reducer import close_streams
 __all__ = [
     "CANCELLED_RESULT",
     "LOCAL_INTERRUPT_PREFIX",
+    "MAX_PATCH_OPS",
     "MAX_PAYLOAD_BYTES",
     "all_answered",
     "apply_approval",
@@ -445,6 +446,10 @@ def begin_run(
     )
 
 
+MAX_PATCH_OPS = 256
+"""The most operations one app-side ``patch_shared_state`` call may carry."""
+
+
 def _json_object_copy(value: object) -> JsonObject | None:
     """A deep copy of ``value`` if it is a finite JSON object within the payload cap."""
     if not isinstance(value, dict):
@@ -503,14 +508,18 @@ def apply_shared_state_patch(conv: ConversationState, ops: object) -> Conversati
     if wrapped is None or not isinstance(wrapped["ops"], list):
         return failed
     operations = wrapped["ops"]
-    if not all(isinstance(op, dict) for op in operations):
+    if len(operations) > MAX_PATCH_OPS or not all(isinstance(op, dict) for op in operations):
         return failed
-    try:
-        result = apply_patch(conv.shared_state, operations)  # type: ignore[arg-type]
-    except PatchError:
-        return failed
-    if _json_object_copy(result) is None:
-        return failed
+    # One op at a time, with the size cap after each: ``copy``/``move`` ops can double the
+    # document, so checking only the final result would allow exponential growth first.
+    result = conv.shared_state
+    for op in operations:
+        try:
+            result = apply_patch(result, [op])  # type: ignore[list-item]
+        except PatchError:
+            return failed
+        if _json_object_copy(result) is None:
+            return failed
     return conv.with_(shared_state=result, shared_state_stale=False)
 
 

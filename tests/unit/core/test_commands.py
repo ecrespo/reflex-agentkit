@@ -11,6 +11,7 @@ from ag_ui.core import ResumeEntry
 from helpers.invariants import check_invariants
 
 from reflex_agentkit.core.commands import (
+    MAX_PATCH_OPS,
     MAX_PAYLOAD_BYTES,
     all_answered,
     apply_approval,
@@ -750,3 +751,25 @@ def test_REQ_028_1_retry_without_a_user_message_is_a_no_op() -> None:
     """REQ-028.1: there is nothing to retry before the first user message."""
     conv = _idle(run_status=RunStatus.CANCELLED)
     assert begin_retry(conv, config=CONFIG) is conv
+
+
+def test_REQ_017_1_patch_cannot_grow_exponentially() -> None:
+    """Security: repeated ``copy`` ops are stopped at the size cap, op by op."""
+    ops = [{"op": "add", "path": "/a", "value": "x" * 1024}]
+    ops += [
+        {"op": "copy", "from": "/a", "path": "/a2"},
+        {"op": "move", "from": "/a2", "path": "/b"},
+    ]
+    doubling = [{"op": "add", "path": "/a", "value": ["x" * 1024]}]
+    doubling += [{"op": "copy", "from": "/a", "path": "/a/-"} for _ in range(200)]
+    conv = apply_shared_state_patch(_idle(), doubling)
+    assert conv.shared_state == {}
+    assert conv.error_code is ErrorCode.SHARED_STATE_PATCH_FAILED
+    assert apply_shared_state_patch(_idle(), ops).shared_state["b"] == "x" * 1024
+
+
+def test_REQ_017_1_patch_with_too_many_ops_fails() -> None:
+    """Security: one call carries at most ``MAX_PATCH_OPS`` operations."""
+    ops = [{"op": "add", "path": f"/k{i}", "value": i} for i in range(MAX_PATCH_OPS + 1)]
+    conv = apply_shared_state_patch(_idle(), ops)
+    assert conv.error_code is ErrorCode.SHARED_STATE_PATCH_FAILED

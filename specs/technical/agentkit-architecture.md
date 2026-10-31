@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.9 |
+| **Version** | 1.10 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -409,6 +409,16 @@ allowed to fail and opens an issue when it does.
   maps `CUSTOM(name="on_interrupt")` to a synthetic `pending_interrupt` resumed through
   `forwarded_props.command.resume`. It is off by default, documented as a compatibility
   mode, and is the **only** place where `forwarded_props` is used.
+  - **Verified (T-045):** the legacy event carries only the interrupt value, not its ID.
+    `run()` swallows the `on_interrupt` events and turns the plain `RUN_FINISHED` that
+    follows into `RUN_FINISHED(outcome=interrupt)` with a stateless synthetic ID:
+    `legacy-tool-<run_id>` for a `tool_call` value, `legacy-<run_id>` otherwise. The value
+    keys map as in `lg_interrupt_to_agui`, and the value is the payload.
+  - The legacy channel carries one resume value, so one interrupt is exposed per pause;
+    extra ones are dropped with a WARNING log record (count only).
+  - On resume, the `ResumeEntry` becomes `forwarded_props.command.resume` and
+    `RunAgentInput.resume` is cleared. A cancelled entry resumes as in the native mode
+    (cancelled approval or the `__agui_cancelled__` sentinel), told apart by the ID prefix.
 
 ### DD-013 — Tool renderers via `rx.match` (closes API Q-5)
 
@@ -666,3 +676,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.7 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-015 and §11 OQ-3 resolved: `rx.markdown` enables raw HTML by default in Reflex 0.10.1, so components pass `use_raw=False`. Found in T-036. |
 | 1.8 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-2 resolved by T-040: examples compile in CI with `reflex compile --dry` and the `AGENTKIT_MODEL=test` swap in `rxconfig.py`. |
 | 1.9 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: `run()` uses a per-run `clone()` (upstream keeps per-run state on the instance) and `STATE_SNAPSHOT` drops the `messages` and `tools` keys. Found in T-042 (spec drift rule). |
+| 1.10 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: the legacy-interrupt mechanics (synthetic stateless IDs, one interrupt per pause, resume through `forwarded_props.command.resume`). Found in T-045. |

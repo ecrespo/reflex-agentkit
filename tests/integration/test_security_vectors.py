@@ -296,15 +296,14 @@ def test_TD_6_1_hooks_from_another_mixin_are_not_browser_callable() -> None:
     assert "send_message" in SvMixedHooks.event_handlers
 
 
-def test_TD_6_1_a_hook_declared_as_an_event_is_a_configuration_error() -> None:
-    """``@rx.event`` on a hook would make it browser-callable, so the class is refused."""
-    from reflex_agentkit import ConfigurationError
+def test_TD_6_1_a_hook_decorated_as_an_event_stays_hidden() -> None:
+    """``@rx.event`` returns the plain function, so the flag still keeps the hook hidden."""
 
-    with pytest.raises(ConfigurationError, match="on_run_end"):
+    class SvEventHook(AgentState, rx.State):
+        agent: ClassVar = HttpAGUIClient("http://agent.internal")
 
-        class SvEventHook(AgentState, rx.State):
-            agent: ClassVar = HttpAGUIClient("http://agent.internal")
+        @rx.event
+        async def on_run_end(self, status: RunStatus) -> None:  # type: ignore[override]
+            pass
 
-            @rx.event
-            async def on_run_end(self, status: RunStatus) -> None:
-                pass
+    assert "on_run_end" not in SvEventHook.event_handlers

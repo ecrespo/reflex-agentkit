@@ -791,8 +791,8 @@
 - **Done:** three drafts exist, each with a "how to submit" header (target repo, path,
   PR title).
 
-### T-052 · `0.1.0rc1` → `v0.1.0` `[~]`
-> **Note (2026-10-31):** `0.1.0rc1` was published through PR #2 (PyPI, tag `v0.1.0rc1`, GitHub pre-release). Fresh-environment walkthrough: `uv add "reflex-agentkit[all]==0.1.0rc1"` installs and imports; the quickstart compiles; a real Ollama model (`qwen3:8b`) completed approval with edited arguments through both adapters and all ten Dojo demos (five per adapter). It found one bug, fixed (DM v1.11: one-chunk LangGraph tool calls showed empty arguments). The manual run with Claude needs an Anthropic key and is left to the maintainer. Version `0.1.0`, CHANGELOG `[0.1.0]` and the specs' released state are on `develop`; the `0.1.0` release PR is open. Done once it is merged and `uv add reflex-agentkit` installs `0.1.0`.
+### T-052 · `0.1.0rc1` → `v0.1.0` `[x] 2026-10-31`
+> **Note (2026-10-31):** `0.1.0rc1` was published through PR #2 (PyPI, tag `v0.1.0rc1`, GitHub pre-release). Fresh-environment walkthrough: `uv add "reflex-agentkit[all]==0.1.0rc1"` installs and imports; the quickstart compiles; a real Ollama model (`qwen3:8b`) completed approval with edited arguments through both adapters and all ten Dojo demos (five per adapter). It found one bug, fixed (DM v1.11: one-chunk LangGraph tool calls showed empty arguments). The manual run with Claude needs an Anthropic key and is left to the maintainer. Version `0.1.0`, CHANGELOG `[0.1.0]` and the specs' released state are on `develop`; PR #3 published `0.1.0` (PyPI, tag `v0.1.0`, GitHub Release). A clean `uv add "reflex-agentkit[pydantic-ai]"` installs `0.1.0` and the quickstart compiles.
 
 - **What:** bump to `0.1.0rc1` and merge to `main` (published automatically) → fresh-env walkthrough (the PydanticAI and
   LangGraph dojos plus the quickstart) → fix anything found → CHANGELOG `[0.1.0]` → bump

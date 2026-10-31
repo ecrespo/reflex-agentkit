@@ -5,10 +5,20 @@ chat, tool-call cards and human-in-the-loop approval for LangGraph, PydanticAI a
 AG-UI-compatible agent. The production UI layer your agent was missing — no TypeScript,
 no Streamlit.
 
-> **Status: pre-alpha, under active development.** Nothing is published on PyPI yet; the
-> first pre-release (`0.1.0a1`, on PyPI) is built and waiting for the release setup.
-> The pure core, the agent clients, the Reflex state engine (`AgentState`), the chat
-> components and both adapters (PydanticAI and LangGraph) are implemented and tested.
+> **Status: pre-release.** Everything in v0.1 is implemented and tested: the pure core,
+> the agent clients, the Reflex state engine (`AgentState`), the chat components, both
+> adapters (PydanticAI and LangGraph) and the AG-UI Dojo examples. `0.1.0` is being
+> prepared for PyPI. Documentation: [`docs/`](docs/) (`uv run mkdocs serve`).
+
+## Why
+
+A Python developer with a working agent usually has two options for its UI: Streamlit,
+which re-runs the whole script on every interaction and has to work around streaming tool
+calls, mid-run approvals and cancellation; or a Next.js frontend, which adds a second
+language, build and deployment. reflex-agentkit is the middle: Reflex already holds the
+state on the server, keeps a WebSocket to every browser and runs background tasks, and
+this library adds the agent layer on top, speaking the AG-UI protocol that PydanticAI and
+LangGraph already emit.
 
 ## Quickstart
 
@@ -80,6 +90,41 @@ with `show_shared_state=True`, `shared_state_panel`. Custom renderers for a tool
 (`interrupt_renderers={...}`) replace the default card body or form. Every control has
 an accessible label.
 
+## Features
+
+| Feature | How |
+|---|---|
+| Streaming replies | Markdown streamed token by token, batched to at most one push per 50 ms |
+| Tool calls | A card per call with arguments, status and result; custom renderers per tool |
+| Approvals | Approve, edit the arguments, or reject a tool call before it runs |
+| Questions from the agent | AG-UI standard interrupts, answered with a replaceable form |
+| Shared state | The agent's state mirrored in `shared_state`, optionally validated by a Pydantic model, editable by the app |
+| Client tools | Tools the agent calls that run in the Reflex app, e.g. to draw a chart |
+| Real cancellation | Stop closes the agent's stream within a second, also across workers |
+| Any AG-UI agent | In process (PydanticAI, LangGraph adapters) or over HTTP (`HttpAGUIClient`) |
+| Safe by default | Agent, clients and keys never become browser state; every handler validates its input |
+
+## How it compares
+
+| | reflex-agentkit | Streamlit | CopilotKit | agentstage |
+|---|---|---|---|---|
+| UI written in | Python (Reflex) | Python | React / TypeScript | Python |
+| Agent protocol | AG-UI | none (your own wiring) | AG-UI | its own JSON API over SSE |
+| Agent frameworks | PydanticAI, LangGraph, any AG-UI server | any, by hand | many, through AG-UI | LangChain, LangGraph |
+| Streaming and tool calls | built in | by hand, script reruns | built in | built in |
+| Approvals and questions | AG-UI interrupts, edit before approving | by hand | built in | LangGraph interrupts |
+| Shared state, client tools | built in | by hand | built in | — |
+| Your own UI | any Reflex component | any Streamlit widget | any React component | configured app |
+
+*agentstage (`agentstage-ui` on PyPI, 0.1.2, September 2026) per its README.*
+
+## Documentation
+
+The MkDocs site in [`docs/`](docs/) covers getting started (uv and pip), the concepts,
+guides (your own UI, human in the loop, sidecar deployment, local models with Ollama), the
+API reference, the security model and troubleshooting. Preview it with
+`uv run mkdocs serve`.
+
 ## Progress
 
 Work follows the approved spec chain in [`specs/`](specs/) and the task list in
@@ -95,7 +140,7 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (PyPI publish pending the release setup) |
 | WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval`, legacy interrupts | ✅ done |
 | WP7 — Dojo examples | The five AG-UI Dojo demos for PydanticAI and LangGraph | ✅ done |
-| WP8 — Hardening, docs, release | Documentation site, `0.1.0` on PyPI | 🚧 next |
+| WP8 — Hardening, docs, release | Security review, benchmarks, documentation site, `0.1.0` on PyPI | 🚧 in progress (security, benchmarks and docs done) |
 
 ## What works today: `reflex_agentkit.core`
 
@@ -358,6 +403,8 @@ The workflow is uv only (Python 3.11–3.13).
 | Coverage gate (≥ 85 % on `core` and `state`) | `uv run python scripts/check_gated_coverage.py` |
 | Core isolation check | `uv run python scripts/assert_core_isolated.py` |
 | Quickstart smoke (offline) | `uv run pytest tests/smoke` |
+| Benchmarks (NFR-01, NFR-04) | `uv run pytest -m bench -q` |
+| Docs site | `uv run mkdocs serve` · `uv run mkdocs build --strict` |
 
 Releases are automatic: merging a new version into `main` publishes it to PyPI (see
 [`CONTRIBUTING.md`](CONTRIBUTING.md#releases)).

@@ -84,6 +84,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   (`docs/integrations/upstream-issues.md`).
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.
+- A documentation site (MkDocs Material, `mkdocs.yml` and `docs/`): getting started,
+  concepts, guides (your own UI, human in the loop, sidecar deployment, Ollama), the API
+  reference, the security model and troubleshooting. CI builds it with `--strict`.
+- Benchmarks under the `bench` marker: the reducer (NFR-01) and the flush lag with 20
+  concurrent clients (NFR-04).
+- A weekly workflow that tests against the newest allowed dependency versions and opens
+  an issue when they fail.
 
 ### Changed
 
@@ -101,3 +108,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   patch can quote shared-state values.
 - App-side shared-state patches are applied op by op under the 64 KiB cap and limited to
   256 operations, so `copy` ops cannot grow the document exponentially.
+- `AgentState`'s hooks (`create_client`, `prepare_run_input`, `on_custom_event`,
+  `on_run_end`) and `typed_shared_state`, and every override of them, are no longer
+  registered as Reflex event handlers, so the browser cannot call them.
+- The latest-dependencies workflow runs the newest, unvetted versions without a token or
+  stored git credentials; a separate job reports failures.

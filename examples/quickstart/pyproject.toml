@@ -1,0 +1,9 @@
+[project]
+name = "quickstart"
+version = "0.1.0"
+description = "The reflex-agentkit quickstart: a PydanticAI travel agent with a tool approval."
+requires-python = ">=3.11"
+dependencies = ["reflex-agentkit[pydantic-ai]"]
+
+[tool.uv.sources]
+reflex-agentkit = { workspace = true }

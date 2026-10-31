@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.1 |
+| **Version** | 1.3 |
 | **Date** | 2026-10-30 |
 | **PRD** | [v1.1](../prd/agentkit-v0.1.md) |
 | **API Spec** | [v1.1](../api/agentkit-python-api-v1.md) |
@@ -30,8 +30,8 @@ layering:
 8. the Dojo examples;
 9. hardening, docs and release.
 
-Every WP ends with something verifiable in CI. Two pre-releases to TestPyPI validate
-packaging early: **`0.1.0a1`** once the quickstart works end-to-end (end of WP5) and
+Every WP ends with something verifiable in CI. Two pre-releases to PyPI (no TestPyPI, a
+maintainer decision of 2026-10-31) validate packaging early: **`0.1.0a1`** once the quickstart works end-to-end (end of WP5) and
 **`0.1.0rc1`** before the final release.
 
 **uv is the only package and project manager** (Constitution stack constraints).
@@ -67,7 +67,7 @@ availability).
 | Add a dependency (maintainer only, with a delta or TD note) | `uv add <pkg>` · `uv add --optional pydantic-ai <pkg>` · `uv add --group dev <pkg>` |
 | Upgrade the lock | `uv lock --upgrade` (or `--upgrade-package <pkg>`) |
 | Build | `uv build` (writes sdist and wheel to `dist/`) |
-| Publish (CI only) | `uv publish --trusted-publishing always` (`--publish-url https://test.pypi.org/legacy/` for TestPyPI) |
+| Publish (CI only) | `uv publish --trusted-publishing always` (PyPI only) |
 | Docs | `uv run mkdocs serve` · `uv run mkdocs build --strict` |
 
 ### 1.2 `pyproject.toml` layout (decided here; implemented in WP0)
@@ -104,8 +104,8 @@ availability).
 | Constitution, PRD, API, TD and Data Model approved | Maintainer | ☑ Done (2026-10-30) | — |
 | Tasks file approved and Analyze gate run | Maintainer | ☐ Pending | before WP0 |
 | GitHub repo `ecrespo/reflex-agentkit` (remote exists) | Maintainer | ☑ Exists | — |
-| PyPI and TestPyPI name `reflex-agentkit` (both 404 = available, checked 2026-10-30) | Maintainer (`seraph13`) | ☐ Register **pending trusted publishers** on both | before WP5 end (`0.1.0a1`) |
-| GitHub environments `testpypi` and `pypi` (the `pypi` one requires reviewers) | Maintainer | ☐ Pending | before WP5 end |
+| PyPI name `reflex-agentkit` (404 = available, checked 2026-10-30) | Maintainer (`seraph13`) | ☐ Register a **pending trusted publisher** on PyPI (no TestPyPI): owner `ecrespo`, repository `reflex-agentkit`, workflow `release.yml`, environment `pypi` | before WP5 end (`0.1.0a1`) |
+| GitHub environment `pypi` (no required reviewers: releases are automatic) | Maintainer | ☐ Pending | before WP5 end |
 | uv ≥ 0.11 locally (0.11.7 installed) | Maintainer | ☑ | — |
 | Docker for the Redis test container (installed) | Maintainer | ☑ | WP3 |
 | `ANTHROPIC_API_KEY` for manual demo runs only (never in CI) | Maintainer | ☐ | WP5 |
@@ -218,7 +218,7 @@ fixtures are committed.
 
 ---
 
-### WP5 — Components and quickstart (≈ 6 d) → **`0.1.0a1` on TestPyPI**
+### WP5 — Components and quickstart (≈ 6 d) → **`0.1.0a1` on PyPI**
 
 | ID | Work item | Est. | Depends | REQs |
 |---|---|---|---|---|
@@ -227,13 +227,10 @@ fixtures are committed.
 | WP5-03 | `approval_dialog` (approve / edit-args JSON / reject; generic interrupt default form and `interrupt_renderers`), `shared_state_panel` | 1.5 d | 01 | 023.5, 023.7 |
 | WP5-04 | `agent_chat` composition; accessibility pass (labels, keyboard) | 0.5 d | 02, 03 | 023.1, 023.8–9 |
 | WP5-05 | `examples/quickstart` (workspace member) + smoke compile (TD OQ-2) + line-count gate + README-block equality test | 1 d | 04, WP4 | 029 |
-| WP5-06 | Release workflow `release.yml` (tag → `uv build` → `uv publish --trusted-publishing always`, testpypi/pypi environments). Publish `0.1.0a1` to TestPyPI. Install it in a fresh `uv venv` and run the quickstart with Claude. | 1 d | 05 | 032.2 |
+| WP5-06 | Release workflow `release.yml`, automatic: a push to `main` whose `__version__` is publishable (not `.dev`) and has no `v<version>` tag yet runs the tests, publishes to PyPI and creates the tag and GitHub Release; a manually pushed `v*` tag publishes too (`uv build` → `uv publish --trusted-publishing always`, `pypi` environment). Publish the pre-release `0.1.0a1` to PyPI. Install it in a fresh `uv venv` and run the quickstart with Claude. | 1 d | 05 | 032.2 |
 
-**Done when:** in a fresh uv project that declares TestPyPI as an **explicit** index
-pinned to this package only (`[[tool.uv.index]] name = "testpypi"`,
-`url = "https://test.pypi.org/simple/"`, `explicit = true`, plus
-`[tool.uv.sources] reflex-agentkit = { index = "testpypi" }`, so the dependencies still
-resolve from PyPI), `uv add "reflex-agentkit[pydantic-ai]==0.1.0a1"` followed by the
+**Done when:** in a fresh uv project, `uv add "reflex-agentkit[pydantic-ai]==0.1.0a1"`
+(the exact pin selects the pre-release from PyPI) followed by the
 quickstart works with a real Claude key, in < 5 minutes on a clean
 machine (PRD §4.2).
 
@@ -270,7 +267,7 @@ machine (PRD §4.2).
 | WP8-03 | MkDocs Material site: getting started (uv and pip), concepts, API reference, sidecar guide, security model, Ollama guide, troubleshooting (ClassVar, banner) | 1.5 d | WP7 | 033.1, 033.3 |
 | WP8-04 | README final: narrative, quickstart (test-locked), feature table, comparison table (Streamlit / CopilotKit / agentstage-ui) | 0.5 d | 03 | 033.1 |
 | WP8-05 | `docs/integrations/` upstream drafts (AG-UI integrations entry, PydanticAI page, LangGraph page) | 1 d | 03 | 033.2 |
-| WP8-06 | `0.1.0rc1` to TestPyPI → fresh-env walkthrough → CHANGELOG `0.1.0` → tag `v0.1.0` → PyPI | 1 d | all | 032.2, PRD §4.1 |
+| WP8-06 | `0.1.0rc1` merged to `main` (published automatically) → fresh-env walkthrough → CHANGELOG `0.1.0` → bump to `0.1.0` and merge to `main` (published and tagged automatically) | 1 d | all | 032.2, PRD §4.1 |
 
 **Done when:** `v0.1.0` is on PyPI, the docs are deployed, and the upstream drafts are
 ready to submit.
@@ -295,7 +292,7 @@ WP2, WP4 and WP6 run alongside it.
 | 1 | WP0, start WP1 | CI green on the skeleton |
 | 2–4 | WP1, WP2 | `core` complete; coverage ≥ 85 % |
 | 5–6 | WP3, WP4 | Streaming and cancel verified; PydanticAI adapter |
-| 7 | WP5 | **`0.1.0a1` on TestPyPI**; quickstart walkthrough |
+| 7 | WP5 | **`0.1.0a1` on PyPI**; quickstart walkthrough |
 | 8 | WP6, start WP7 | LangGraph adapter |
 | 9 | WP7 | 10 Dojo demos |
 | 10–11 | WP8 | **`0.1.0rc1`**, then **`v0.1.0` on PyPI** |
@@ -342,3 +339,5 @@ WP2, WP4 and WP6 run alongside it.
 |---|---|---|
 | 1.0 | 2026-10-30 | Initial version |
 | 1.1 | 2026-10-30 | Analyze fixes: version single source and lazy re-exports (A-01, A-11); gates on core and state (A-04). |
+| 1.3 | 2026-10-31 | Maintainer decision: releases are automatic. A push to `main` with a new publishable `__version__` tests, publishes to PyPI and creates the `v<version>` tag and GitHub Release; the `pypi` environment needs no reviewers. The pending-publisher fields are listed in §2. |
+| 1.2 | 2026-10-31 | Maintainer decision: no TestPyPI. Pre-releases (`0.1.0a1`, `0.1.0rc1`) and the final release all go to PyPI through the `pypi` environment; only the PyPI trusted publisher and that environment are prerequisites. |

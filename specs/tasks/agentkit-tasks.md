@@ -387,7 +387,7 @@
 
 ## WP3 — Reflex state engine
 
-### T-024 · Spike: Reflex in-process state testing (TD OQ-1) `[ ]`
+### T-024 · Spike: Reflex in-process state testing (TD OQ-1) `[x] 2026-10-31`
 - **What:** a timeboxed spike (≤ 0.5 d) to find how to instantiate an `rx.State` subclass
   and invoke foreground and background handlers in tests without a browser in reflex
   0.10.1. Candidates: Reflex testing helpers, `StateManagerMemory` + the app event
@@ -400,7 +400,7 @@
   background handler which does `async with self` twice and asserts that the state
   changed. TD §11 is updated in the same PR.
 
-### T-025 · `StateAccess` port, fake and `RunRegistry` `[ ]`
+### T-025 · `StateAccess` port, fake and `RunRegistry` `[x] 2026-10-31`
 - **What:**
   - `state/_driver.py` protocol `StateAccess`: `locked()` async context manager →
     `StateView(conv, cancel_requested, publish(conv), client_token)`.
@@ -414,7 +414,7 @@
 - **Done:** the registry tests pass (register → cancel returns True and cancels the
   task; a miss returns False).
 
-### T-026 · `RunDriver`: streaming, batching, ownership · TF `[ ]`
+### T-026 · `RunDriver`: streaming, batching, ownership · TF `[x] 2026-10-31`
 - **What:**
   - The driver loop per TD Flow A: pump task + bounded queue (DD-003), flush-on-deadline
     (DD-005; `flush_interval_ms=0` flushes every event), terminal flush.
@@ -430,7 +430,7 @@
   - `test_REQ_026_2_ownership_lost_stops_and_closes_upstream` passes.
   - `test_REQ_027_2_no_content_above_debug`: no message text in records ≥ INFO.
 
-### T-027 · `RunDriver`: cancellation · TF `[ ]`
+### T-027 · `RunDriver`: cancellation · TF `[x] 2026-10-31`
 - **What:** TD Flow D: the registry path (immediate cancel; `finally` closes the pump and
   the client; final flush with `apply_cancel`) and the flag path (`cancel_requested`
   observed at the next tick ≤ `max(flush_interval, 100 ms)`, even with a silent
@@ -441,7 +441,7 @@
 - **Done:** `uv run pytest -k "REQ_007" tests/unit/state -q` passes, including
   `test_REQ_007_1_flag_path_with_silent_upstream_under_1s`.
 
-### T-028 · `RunDriver`: client-tool rounds · TF `[ ]`
+### T-028 · `RunDriver`: client-tool rounds · TF `[x] 2026-10-31`
 - **What:** TD Flow B and Flow C.4:
   - after `RUN_FINISHED`, run the client tools that are `running`, concurrently, outside
     the lock;
@@ -455,7 +455,7 @@
 - **Depends on:** T-026, T-017, T-016
 - **Done:** `uv run pytest -k "REQ_018 or DD_009" tests/unit/state -q` passes.
 
-### T-029 · `AgentState` mixin: configuration, vars, projection · TF `[ ]`
+### T-029 · `AgentState` mixin: configuration, vars, projection · TF `[x] 2026-10-31`
 - **What:** `state/agent_state.py`:
   - `AgentState(rx.State, mixin=True)` with the ClassVars of API §4.1 (incl.
     `max_client_tool_rounds`);
@@ -471,14 +471,15 @@
   - Tests: a missing `agent` → `ConfigurationError` at class definition; negative
     `flush_interval_ms` → error; a duplicate client-tool name → error.
   - The projection never contains `encrypted_value` (INV-11).
-  - `test_REQ_003_1_states_isolated_per_token` (two tokens, one run each) passes.
+  - `test_REQ_003_1_states_isolated_per_token` (two tokens, one run each) passes. *(It needs
+    `send_message`, so it lives in the T-030 handler tests.)*
 
-### T-030 · `AgentState` handlers and hooks · TF `[ ]`
+### T-030 · `AgentState` handlers and hooks · TF `[x] 2026-10-31`
 - **What:** the handlers of API §4.3 with their preconditions and no-op rules:
   - `send_message`, `approve_tool` (`str` JSON accepted), `reject_tool`,
     `respond_to_interrupt`, `cancel_run`, `new_thread`, `set_shared_state`,
     `patch_shared_state` (with `shared_state_model` validation), `retry_run`;
-  - the `_drive_run` background handler with no arguments and the `_pending_start`
+  - the `drive_run` background handler (TD v1.6) with no arguments and the `_pending_start`
     claim;
   - hooks `create_client`, `prepare_run_input`, `on_custom_event` (exceptions logged),
     `on_run_end`;
@@ -491,7 +492,7 @@
     passes.
   - `test_TD_6_1_forged_drive_run_is_noop` passes.
 
-### T-031 · Cross-cutting state tests: secret leak, responsiveness, multi-worker cancel `[ ]`
+### T-031 · Cross-cutting state tests: secret leak, responsiveness, multi-worker cancel `[x] 2026-10-31`
 - **What:**
   1. **REQ-025.2:** a configured state with `HttpAGUIClient(headers={"Authorization": "Bearer SECRET-123"})`
      runs against the fake server; the client-visible state, serialized with Reflex's
@@ -515,7 +516,7 @@
 
 ## WP4 — PydanticAI adapter
 
-### T-032 · Adapter import guard `[P]` `[ ]`
+### T-032 · Adapter import guard `[P]` `[x] 2026-10-31`
 - **What:** `adapters/_require.py::require(extra, module)`, which raises
   `AdapterNotInstalledError` with the exact API §7.7 message. Both adapter modules call it
   at import.
@@ -525,7 +526,7 @@
 - **Done:** a test that monkeypatches `sys.modules["pydantic_ai"] = None` asserts the
   error type and message.
 
-### T-033 · `PydanticAIAgent` · TF `[ ]`
+### T-033 · `PydanticAIAgent` · TF `[x] 2026-10-31`
 - **What:** `adapters/pydantic_ai.py`, per API §7.5 / TD DD-011: `run()` →
   `AGUIAdapter(agent, run_input).run_stream(output_type=…injected…, deps=…, **run_kwargs)`;
   `deps` and `deps_factory` are mutually exclusive.
@@ -537,7 +538,7 @@
   `requires_approval` tool ends its run with an interrupt outcome). With `TestModel` and a text reply, the
   events stream starts with `RUN_STARTED` and ends with `RUN_FINISHED`.
 
-### T-034 · PydanticAI integration: approvals and client tools `[ ]`
+### T-034 · PydanticAI integration: approvals and client tools `[x] 2026-10-31`
 - **What:** end-to-end through `InProcessAGUIClient` + reducer + commands +
   `RunInputBuilder` with `TestModel(call_tools=[...])`:
   - approve (the tool runs);
@@ -551,7 +552,7 @@
 - **Done:** `uv run pytest -k "REQ_022 or REQ_013_5" tests/integration -q` passes with no
   network.
 
-### T-035 · PydanticAI contract test and fixture recorder `[ ]`
+### T-035 · PydanticAI contract test and fixture recorder `[x] 2026-10-31`
 - **What:** contract test TD §8.4 item 2 (including the frontend-tool → `outcome=success` fact, Analyze A-18). `scripts/record_fixture.py --adapter pydantic-ai --scenario <name>`
   writes DM §10 JSONL from a `TestModel` run. Record and commit
   `pydantic_ai_approval_recorded.jsonl`.
@@ -565,7 +566,7 @@
 
 ## WP5 — Components and quickstart
 
-### T-036 · `message_list` and `composer` `[ ]`
+### T-036 · `message_list` and `composer` `[x] 2026-10-31`
 - **What:** `components/messages.py`, `components/composer.py`, per API §10 / PRD
   REQ-023.2–3:
   - markdown without raw HTML (resolve TD OQ-3 and update TD §11);
@@ -578,7 +579,7 @@
 - **Done:** render-to-string tests pass. `test_DD_015_raw_html_not_rendered` shows that
   `<img src=x onerror=alert(1)>` is escaped. The aria-labels are present.
 
-### T-037 · `tool_call_card` with renderer dispatch, and `run_status_bar` `[P]` `[ ]`
+### T-037 · `tool_call_card` with renderer dispatch, and `run_status_bar` `[P]` `[x] 2026-10-31`
 - **What:** `components/tools.py` (header with name and status badge; collapsible args
   and result; `body` override; `rx.match` over the `tool_renderers` names; no
   `rx.match` when the mapping is empty) and `components/status.py` (status, step, cancel
@@ -588,7 +589,7 @@
 - **Depends on:** T-029
 - **Done:** `uv run pytest -k "REQ_019 or REQ_023_4 or REQ_023_6" -q` passes.
 
-### T-038 · `approval_dialog` and `shared_state_panel` `[P]` `[ ]`
+### T-038 · `approval_dialog` and `shared_state_panel` `[P]` `[x] 2026-10-31`
 - **What:** `components/approval.py`:
   - open while `pending_approvals` is non-empty or `pending_interrupt` is set; one item
     at a time, approvals first;
@@ -602,7 +603,7 @@
 - **Depends on:** T-029
 - **Done:** `uv run pytest -k "REQ_023_5 or REQ_023_7" -q` passes.
 
-### T-039 · `agent_chat` composition and accessibility pass `[ ]`
+### T-039 · `agent_chat` composition and accessibility pass `[x] 2026-10-31`
 - **What:** `components/chat.py`, the `agent_chat(state, *, tool_renderers, interrupt_renderers, show_shared_state, placeholder, **props)`
   composition. Public re-exports in `components/__init__.py` and in the top-level
   `reflex_agentkit/__init__.py` (`__all__` exactly as API §3).
@@ -614,7 +615,7 @@
   out of `sys.modules` (lazy re-exports, API §1). An a11y test asserts that every button and input in a rendered `agent_chat` has
   an aria-label or text.
 
-### T-040 · Quickstart example, smoke compile and gates `[ ]`
+### T-040 · Quickstart example, smoke compile and gates `[x] 2026-10-31`
 - **What:**
   - `examples/quickstart/` as a uv workspace member: `pyproject.toml`, `rxconfig.py`,
     `quickstart/quickstart.py` = API §2 verbatim.
@@ -633,26 +634,28 @@
   green. A manual check, `ANTHROPIC_API_KEY=… uv run --package quickstart reflex run`,
   streams, shows `get_weather`, and opens the approval dialog for `book_hotel`.
 
-### T-041 · Release workflow and `0.1.0a1` on TestPyPI `[ ]`
-- **What:** `.github/workflows/release.yml`:
-  - on tag `v*`: `uv build` → `uv publish --trusted-publishing always`;
-  - `a`/`rc` tags go to the `testpypi` environment
-    (`--publish-url https://test.pypi.org/legacy/`); final tags go to `pypi` (environment
-    with required reviewers).
+### T-041 · Release workflow and `0.1.0a1` on PyPI `[!]`
+> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). No TestPyPI (maintainer decision, Plan v1.2). Releases are automatic (Plan v1.3). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publisher on PyPI (owner `ecrespo`, repository `reflex-agentkit`, workflow `release.yml`, environment `pypi`) and the GitHub environment `pypi` (it does not exist yet). Then merging `develop` (at `0.1.0a1`) into `main` publishes and tags it; run the walkthrough against PyPI.
 
-  Bump to `0.1.0a1`, add a CHANGELOG entry, tag. Then the fresh-env walkthrough from Plan
-  WP5 "Done", with the explicit TestPyPI index.
+- **What:** `.github/workflows/release.yml`:
+  - on a push to `main` whose `__version__` is publishable (not `.dev`) and untagged, and on
+    a manually pushed `v*` tag: tests → `uv build` → `uv publish --trusted-publishing always`
+    → tag `v<version>` and GitHub Release (marked pre-release for `a`/`b`/`rc`);
+  - every version, pre-release or final, goes to PyPI through the `pypi` environment.
+
+  Bump to `0.1.0a1`, add a CHANGELOG entry. Then the fresh-env walkthrough from Plan
+  WP5 "Done", with the exact `==0.1.0a1` pin from PyPI.
 - **REQ:** REQ-032.2 · PRD §4.2
 - **Files:** `.github/workflows/release.yml`, `src/reflex_agentkit/__init__.py`, `CHANGELOG.md`
 - **Depends on:** T-040 · **Prerequisite:** the pending trusted publishers registered (Plan §2)
-- **Done:** `0.1.0a1` is visible on test.pypi.org. The walkthrough takes < 5 min from an
+- **Done:** `0.1.0a1` is visible on pypi.org as a pre-release. The walkthrough takes < 5 min from an
   empty dir to a working chat (timed, noted in the execution log).
 
 ---
 
 ## WP6 — LangGraph adapter
 
-### T-042 · `LangGraphAGUIAgent` · TF `[ ]`
+### T-042 · `LangGraphAGUIAgent` · TF `[x] 2026-10-31`
 - **What:** `adapters/langgraph.py`: a subclass of `ag_ui_langgraph.LangGraphAgent` with
   `emit_interrupt_outcome=True`, `enable_legacy_on_interrupt_event=False` and
   `emit_raw_events=False`. Checkpointer check → `ConfigurationError`. `run()` satisfies
@@ -662,7 +665,7 @@
 - **Depends on:** T-019, T-032
 - **Done:** `uv run pytest -k "REQ_034_1 or REQ_034_4" -q` passes.
 
-### T-043 · `request_tool_approval` and native multi-resume · TF `[ ]`
+### T-043 · `request_tool_approval` and native multi-resume · TF `[x] 2026-10-31`
 - **What:** `ApprovalDecision` and `request_tool_approval()` (the interrupt value with the
   native keys, TD DD-012). Override `_build_command_from_agui_resume`: single resolved →
   `Command(resume=payload)`; multiple → `Command(resume={interrupt_id: payload})`;
@@ -673,7 +676,7 @@
 - **Depends on:** T-042
 - **Done:** unit tests for the four resume shapes pass.
 
-### T-044 · LangGraph integration: interrupts and approvals `[ ]`
+### T-044 · LangGraph integration: interrupts and approvals `[x] 2026-10-31`
 - **What:** a scripted graph (`StateGraph` + `MemorySaver` + a fake chat model that emits
   a tool call) through `InProcessAGUIClient`:
   - a generic `interrupt()` answered with `respond_to_interrupt`;
@@ -685,7 +688,7 @@
 - **Depends on:** T-043, T-016, T-015
 - **Done:** `uv run pytest -k REQ_034 tests/integration -q` passes with no network.
 
-### T-045 · LangGraph contract test, legacy mode, upstream bug report `[P]` `[ ]`
+### T-045 · LangGraph contract test, legacy mode, upstream bug report `[P]` `[x] 2026-10-31`
 - **What:**
   - Contract test TD §8.4 item 3 (`lg_interrupt_to_agui` key mapping; the override hook
     is invoked).
@@ -701,7 +704,7 @@
 
 ## WP7 — Dojo examples
 
-### T-046 · Shared model selection for examples `[ ]`
+### T-046 · Shared model selection for examples `[x] 2026-10-31`
 - **What:** `examples/_shared/models.py` (a workspace-local helper package). For
   `AGENTKIT_MODEL`:
   - unset → `anthropic:claude-sonnet-5-5`;
@@ -716,7 +719,9 @@
 - **Depends on:** T-040
 - **Done:** unit tests cover the three branches without network.
 
-### T-047 · `examples/pydantic_ai_dojo` (5 demos) `[ ]`
+### T-047 · `examples/pydantic_ai_dojo` (5 demos) `[x] 2026-10-31`
+> **Note:** the smoke compile, the line-count test and an offline driven turn per demo pass. The manual runs with Claude and with `AGENTKIT_MODEL=ollama:<model>` need a key and a local model; they are left to the maintainer.
+
 - **What:** a multi-page Reflex app, one page per demo (agentic chat, backend tool
   rendering with a `tool_renderers` weather card, human-in-the-loop, shared state with
   `shared_state_model` + panel, tool-based generative UI with a client tool + renderer),
@@ -728,7 +733,9 @@
   module. A manual run with Claude works, and with `AGENTKIT_MODEL=ollama:<model>` too
   (noted in the log).
 
-### T-048 · `examples/langgraph_dojo` (5 demos) `[ ]`
+### T-048 · `examples/langgraph_dojo` (5 demos) `[x] 2026-10-31`
+> **Note:** the smoke compile, the line-count test and an offline driven turn per demo (including a question interrupt followed by an approval with edited arguments) pass. The manual runs with Claude and with `AGENTKIT_MODEL=ollama:<model>` need a key and a local model; they are left to the maintainer.
+
 - **What:** the same five demos with LangGraph graphs (approval via
   `request_tool_approval`; generic interrupt via `interrupt()`).
 - **REQ:** REQ-030.1–2
@@ -740,7 +747,9 @@
 
 ## WP8 — Hardening, docs, release
 
-### T-049 · Security review and benchmarks `[ ]`
+### T-049 · Security review and benchmarks `[x] 2026-10-31`
+> **Note:** TD §6.1 walked vector by vector in `tests/integration/test_security_vectors.py` (with the automated commit security review as a second pass). One finding was fixed: Reflex registered the hooks (`create_client`, `prepare_run_input`, `on_custom_event`, `on_run_end`, `typed_shared_state`) as browser-callable event handlers; `AgentState` now hides them, including overrides from any class in the MRO (TD v1.14, API v1.6). Markdown-image exfiltration is recorded as a medium residual risk (TD §6.1) pending a maintainer decision. Benchmarks: NFR-01 p95 30 µs (budget 1 ms; the DM §5 escape hatch is not needed), NFR-04 worst client p95 56 ms (budget 250 ms). No high or critical findings are open.
+
 - **What:**
   - Run `/security-review` on the branch and walk TD §6.1 vector by vector, adding a
     test per vector where one is missing (payload caps, forged trigger, XSS, header
@@ -755,7 +764,9 @@
 - **Done:** `uv run pytest -m bench -q` meets the targets (or the DM §5 escape hatch is
   applied and recorded). There are no high or critical findings open.
 
-### T-050 · Documentation site `[ ]`
+### T-050 · Documentation site `[x] 2026-10-31`
+> **Note:** `mkdocs.yml` and `docs/` (home, getting started, concepts, four guides, seven reference pages, security model, troubleshooting); `docs/integration-prompts.md` is excluded from the site. `uv run mkdocs build --strict` passes and runs in a CI `docs` job. The sidecar guide's server code was checked end to end (PydanticAI `AGUIAdapter.dispatch_request` and `add_langgraph_fastapi_endpoint` with `HttpAGUIClient`). The README has the narrative, the feature table and the comparison table; the quickstart test still passes.
+
 - **What:** MkDocs Material: getting started (uv and pip), concepts (runs, threads,
   interrupts, shared state), the API reference (mkdocstrings is **not** added; reference
   pages are hand-written from the API Spec to avoid a new dependency), the sidecar
@@ -768,7 +779,9 @@
 - **Done:** `uv run mkdocs build --strict` passes. The README quickstart test still
   passes.
 
-### T-051 · Upstream integration drafts `[P]` `[ ]`
+### T-051 · Upstream integration drafts `[P]` `[x] 2026-10-31`
+> **Note:** the three drafts follow the target files as they are today: the **Clients** table of the `ag-ui-protocol/ag-ui` README, a subsection of `docs/ui/ag-ui.md` in `pydantic/pydantic-ai`, and a Mintlify page under `src/oss/langgraph/frontend/` plus its `src/docs.json` entry in `langchain-ai/docs`. Each has a "How to submit" box (target repo, path, PR title, when). Submitting them is left to the maintainer, after `0.1.0` is on PyPI.
+
 - **What:** `docs/integrations/`: an AG-UI integrations-table entry (Python/Reflex
   client), a PydanticAI "UI with Reflex" page, a LangGraph "frontend with Reflex" page,
   each in the target repo's format, with links to the examples.
@@ -778,10 +791,12 @@
 - **Done:** three drafts exist, each with a "how to submit" header (target repo, path,
   PR title).
 
-### T-052 · `0.1.0rc1` → `v0.1.0` `[ ]`
-- **What:** bump to `0.1.0rc1` → TestPyPI → fresh-env walkthrough (the PydanticAI and
+### T-052 · `0.1.0rc1` → `v0.1.0` `[!]`
+> **Note (2026-10-31):** the version is `0.1.0rc1` on `develop` and PR #2 (develop → main) is open. Blocked on the maintainer: register the PyPI pending publisher (T-041), merge PR #2 (which publishes `0.1.0rc1`), then the fresh-environment walkthrough, the CHANGELOG `[0.1.0]` section and the `0.1.0` bump follow.
+
+- **What:** bump to `0.1.0rc1` and merge to `main` (published automatically) → fresh-env walkthrough (the PydanticAI and
   LangGraph dojos plus the quickstart) → fix anything found → CHANGELOG `[0.1.0]` → bump
-  to `0.1.0` → tag `v0.1.0` → approve the `pypi` environment → verify
+  to `0.1.0` → merge to `main` (published and tagged automatically) → verify
   `uv add reflex-agentkit` from PyPI.
 - **REQ:** REQ-032.2 · PRD §4.1
 - **Files:** `src/reflex_agentkit/__init__.py`, `CHANGELOG.md`
@@ -804,7 +819,7 @@ MUST requirements: every one has ≥ 1 task and ≥ 1 test, cited by name prefix
 | 004 | MUST | T-010, T-014, T-022, T-026 | fixtures, integration/test_http_client, unit/state/test_driver_streaming |
 | 005 | MUST | T-008, T-010, T-018, T-035 | unit/core/test_fixtures, test_reducer_properties |
 | 006 | MUST | T-026 | unit/state/test_driver_streaming |
-| 007 | MUST (007.6 SHOULD → MUST at T-031) | T-015, T-022, T-023, T-027, T-030, T-031 | integration/test_http_client, unit/state/test_driver_cancel, integration/test_multiworker_cancel |
+| 007 | MUST (007.6 raised to MUST in PRD v1.3, T-031) | T-015, T-022, T-023, T-027, T-030, T-031 | integration/test_http_client, unit/state/test_driver_cancel, integration/test_multiworker_cancel |
 | 008 | MUST | T-011 | fixtures text_* |
 | 009 | MUST | T-012 | fixtures tool_call_* |
 | 010 | MUST | T-010, T-013 | fixtures |

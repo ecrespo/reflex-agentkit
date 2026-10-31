@@ -1,0 +1,17 @@
+{"fixture": "pydantic_ai_approval_recorded", "reqs": ["REQ-005.3", "REQ-022.2"], "start": {"user_text": "book a hotel"}, "expect": {"run_status": "idle", "tool_calls": [{"id": "pyd_ai_tool_call_id__book_hotel", "name": "book_hotel", "status": "done", "result": "booked a"}], "messages.length": 4, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run", "protocolVersion": "1.0"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m1", "role": "assistant"}
+{"type": "TEXT_MESSAGE_END", "messageId": "m1"}
+{"type": "TOOL_CALL_START", "toolCallId": "pyd_ai_tool_call_id__book_hotel", "toolCallName": "book_hotel", "parentMessageId": "m1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "pyd_ai_tool_call_id__book_hotel", "delta": "{\"city\":\"a\"}"}
+{"type": "TOOL_CALL_END", "toolCallId": "pyd_ai_tool_call_id__book_hotel"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run", "outcome": {"type": "interrupt", "interrupts": [{"id": "int-pyd_ai_tool_call_id__book_hotel", "reason": "tool_call", "message": "Approve book_hotel({\"city\":\"a\"})?", "toolCallId": "pyd_ai_tool_call_id__book_hotel", "responseSchema": {"properties": {"approved": {"type": "boolean"}, "editedArgs": {"type": "object"}, "reason": {"type": "string"}}, "required": ["approved"], "type": "object"}}]}}
+{"$command": "approve_tool", "call_id": "pyd_ai_tool_call_id__book_hotel"}
+{"$command": "begin_run", "resume": true}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run2", "protocolVersion": "1.0"}
+{"type": "TOOL_CALL_RESULT", "messageId": "t1", "toolCallId": "pyd_ai_tool_call_id__book_hotel", "content": "booked a", "role": "tool"}
+{"type": "TEXT_MESSAGE_START", "messageId": "m2", "role": "assistant"}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m2", "delta": "{\"book_hotel\":\"booked "}
+{"type": "TEXT_MESSAGE_CONTENT", "messageId": "m2", "delta": "a\"}"}
+{"type": "TEXT_MESSAGE_END", "messageId": "m2"}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run2", "outcome": {"type": "success"}}

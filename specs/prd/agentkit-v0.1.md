@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Date** | 2026-10-30 |
 | **Reviewers** | Ernesto Crespo |
 | **Last updated** | 2026-10-30 |
@@ -260,7 +260,7 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 3. WHEN a run is cancelled through `InProcessAGUIClient`, THE SYSTEM SHALL cancel the agent's asyncio task (a test asserts the agent observes `CancelledError`).
 4. WHEN a run is cancelled, THE SYSTEM SHALL keep the partial assistant message and mark any `streaming` or `running` tool call as `error` with result "cancelled".
 5. IF events of a cancelled run arrive after cancellation, THEN THE SYSTEM SHALL discard them.
-6. WHERE the app runs multiple backend workers with a shared state manager, THE SYSTEM SHALL honor `cancel_run()` even when the cancel event is handled by a different worker than the one running the stream. → TD D-01. *(`SHOULD`; MUST for single-worker.)*
+6. WHERE the app runs multiple backend workers with a shared state manager, THE SYSTEM SHALL honor `cancel_run()` even when the cancel event is handled by a different worker than the one running the stream. → TD D-01. *(`MUST` since v1.3: verified by `tests/integration/test_multiworker_cancel.py` against Redis.)*
 
 #### REQ-008 — Text messages · `MUST`
 1. WHEN `TEXT_MESSAGE_START` arrives, THE SYSTEM SHALL append an `assistant` message with the event's `messageId`, empty content and `streaming = true`.
@@ -511,7 +511,7 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 
 | Risk | Probability | Impact | Mitigation |
 |---|---|---|---|
-| Reflex background-task semantics block cross-worker cancellation | Medium | High | D-01 TD spike first. REQ-007.6 is SHOULD, single-worker is MUST. Document the sidecar path. |
+| Reflex background-task semantics block cross-worker cancellation | Medium | High | D-01 TD spike first. REQ-007.6 was SHOULD until the T-031 Redis test proved it (MUST since v1.3). Document the sidecar path. |
 | `ag-ui-langgraph` keeps interrupt outcomes opt-in, or changes them | Medium | Medium | The adapter enables the flag explicitly. Legacy fallback REQ-034.5. Pin versions, plus a CI job against latest to detect drift. |
 | AG-UI spec churn (31 events and growing) | High | Medium | Tolerant reducer (REQ-012). Fixtures per event. `ag-ui-protocol` pinned to a compatible range. |
 | Token streaming floods the WebSocket | Medium | High | Batching (REQ-006) and the benchmark (NFR-04). |
@@ -552,6 +552,7 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 | 1.0 | 2026-10-30 | Ernesto Crespo (with Claude) | Initial version |
 | 1.1 | 2026-10-30 | Ernesto Crespo (with Claude) | TD amendment A-8: extras contents in REQ-031.1 (Claude + Ollama providers; LangGraph `[fastapi]`). |
 | 1.2 | 2026-10-30 | Ernesto Crespo (with Claude) | Analyze fixes: REQ-004.1 keeps `running` during client-tool rounds (A-02); REQ-022.4 rewritten as testable injection (A-03); "human message" → `user` message (A-10). |
+| 1.3 | 2026-10-31 | Ernesto Crespo (with Claude) | REQ-007.6 (cross-worker cancel) raised from SHOULD to MUST: the flag path (TD Flow D.3) passes the T-031 test with two `StateManagerRedis` instances, cancelled in < 1 s. |
 
 ## Approvals
 

@@ -1,0 +1,5 @@
+"""Benchmark fixtures (``-m bench``)."""
+
+from helpers.reflex_harness import reflex_harness
+
+__all__ = ["reflex_harness"]

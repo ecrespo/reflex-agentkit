@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.3 |
+| **Version** | 1.14 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -58,7 +58,7 @@ Reflex backend worker (one asyncio loop)
  │  AgentState (mixin)                                                      │
  │   ├─ foreground handlers: send_message, approve_tool, cancel_run, …      │
  │   │    (validate → pure command fn → set _pending_start → return bg evt) │
- │   └─ background handler _drive_run ──► RunDriver (pure asyncio)          │
+ │   └─ background handler drive_run  ──► RunDriver (pure asyncio)          │
  │                                         │ owns ConversationState locally │
  │          ┌──── flush every N ms ◄───────┤ reduce() each event            │
  │          │  async with self:            │ runs client tools between      │
@@ -110,8 +110,9 @@ Reflex backend worker (one asyncio loop)
 2. It validates the text (REQ-001.4–6), calls `commands.begin_run(conv, text)` (pure:
    appends the user message, assigns `thread_id` if empty and a new `run_id`, sets status
    `running`), and writes the new `_conv`. It stores `_pending_start = run_id`, projects
-   the public vars, and returns `AgentState._drive_run` (a background event).
-3. `_drive_run` starts. Under `async with self`, it **claims** the start: it checks
+   the public vars, and returns `AgentState.drive_run` (a background event; Reflex 0.10.1 rejects
+   private event handlers, so the name is public and the claim token below guards it).
+3. `drive_run` starts. Under `async with self`, it **claims** the start: it checks
    `_pending_start == _conv.run_id`, clears `_pending_start`, and copies `_conv` locally.
    IF there is nothing to claim, it returns. This defeats forged or duplicate triggers
    (§6.1).
@@ -159,7 +160,7 @@ Reflex backend worker (one asyncio loop)
 2. `approve_tool`, `reject_tool` and `respond_to_interrupt` are foreground handlers. They
    validate, apply the pure command, and project.
 3. WHEN `commands.all_answered(conv)` holds, the handler calls `begin_run(conv, resume=…)`,
-   sets `_pending_start`, and returns `_drive_run`. The flow continues at A.3 with
+   sets `_pending_start`, and returns `drive_run`. The flow continues at A.3 with
    `RunAgentInput.resume` built by `commands.resume_entries(conv)`, which reads the
    entries `begin_run` captured in `conv.resume` (DM §3.10 v1.6) before it cleared the
    interrupts and answers.
@@ -198,7 +199,7 @@ Reflex backend worker (one asyncio loop)
 |---|---|---|
 | Non-2xx response | `HttpAGUIClient` → `AgentHTTPError` | `error`, `AGENT_HTTP_ERROR`; partial content kept |
 | Read timeout, EOF, wrong content type, connect error | `HttpAGUIClient` → `AgentStreamError` | `error`, `AGENT_STREAM_ERROR` |
-| In-process agent raises, or `create_client()` fails | `AgentStreamError(reason="agent_raised")` from the pump task / exception in A.4 | `error`, `AGENT_EXCEPTION`; traceback logged |
+| In-process agent raises, or `create_client()` fails | `AgentStreamError(reason="agent_raised")` from the pump task / exception in A.4 | `error`, `AGENT_EXCEPTION`; exception type logged at ERROR, traceback at DEBUG (§5.3) |
 | `RUN_ERROR` | reducer | `error`, `AGENT_RUN_ERROR` |
 | EOF in-process without a terminal event | driver (iterator exhausted) | `error`, `AGENT_STREAM_ERROR` (REQ-004.4) |
 | Invalid event JSON or schema | client skips it + warning | run continues (REQ-012.3) |
@@ -221,6 +222,7 @@ Reflex backend worker (one asyncio loop)
 | **extra `pydantic-ai`** | `pydantic-ai-slim[ag-ui,anthropic,openai]>=2.64,<3` | 2.64.0 | `anthropic`: Claude is the default model. `openai`: the OpenAI-compatible provider used for **Ollama**. The floor is the version the interrupt contract was verified on. |
 | **extra `langgraph`** | `ag-ui-langgraph[fastapi]>=0.0.47,<0.1`, `langgraph>=1.2,<2` | 0.0.47 / 1.2.19 | `[fastapi]` is required: ag-ui-langgraph's `__init__` imports `fastapi` unconditionally although it declares it optional (an upstream bug, verified; we will report it). |
 | **extra `all`** | both of the above | — | |
+| *examples only* (`examples/_shared`, not the library) | `langchain-anthropic>=1.7.7,<2`, `langchain-openai>=1.7.3,<2` | 1.7.7 / 1.7.3 (2026-10-27 / 2026-10-26) | The LangGraph Dojo's chat models: Claude by default, Ollama through its OpenAI-compatible API (the same split as the `pydantic-ai` extra). Never a dependency of `reflex-agentkit` itself. Added in T-046. |
 
 **Dev group** (uv `[dependency-groups]`): `pytest`, `pytest-asyncio`, `pytest-cov`,
 `hypothesis`, `mypy`, `ruff`, `uvicorn` (fake SSE server, DD-010), `redis` (T-redis), `mkdocs-material`.
@@ -296,10 +298,13 @@ allowed to fail and opens an issue when it does.
   - C: a decorator `@agent_state(agent)`.
 - **Decision:** A, the pre-approved fallback. B depends on Reflex internals that change
   between minors. C is unidiomatic for Reflex and hides the class var from type checkers.
-- **Mitigation:** `AgentState.__init_subclass__` catches the case where a subclass defines
-  `agent` without `ClassVar`. It cannot intercept Reflex's error, which fires first, so
-  the README, the docstring and the `ConfigurationError`/`VarTypeError` troubleshooting
-  entry all show the `ClassVar` form.
+- **Mitigation:** `AgentState.__init_subclass__` validates the subclass *before* calling
+  Reflex's `__init_subclass__` (verified on Reflex 0.10.1: the metaclass records `mixin=`
+  in the class's own `_mixin` and the fields are bound later, in `__init_subclass__`).
+  A configuration attribute defined without `ClassVar` therefore raises our
+  `ConfigurationError` naming the attribute, instead of Reflex's `VarTypeError`, and an
+  invalid class is never registered in the state tree. The README and the docstring
+  still show the `ClassVar` form.
 
 ### DD-007 — JSON Patch: `jsonpatch` library behind a typed façade
 
@@ -391,10 +396,30 @@ allowed to fail and opens an issue when it does.
     sentinel. The docs tell graph authors to check it.
 - The checkpointer check (REQ-034.4) happens in `__init__` (`graph.checkpointer is None`
   → `ConfigurationError`).
+- **Verified (T-042):** `LangGraphAgent` keeps per-run state on the instance
+  (`active_run`, `messages_in_process`), and its FastAPI endpoint clones it per request.
+  Our instance is a `ClassVar` shared by every session, so `run()` runs a fresh `clone()`
+  each time; `clone()` is overridden because our `__init__` signature differs.
+- **Verified (T-042):** upstream `get_state_snapshot` keeps every output key plus
+  `tools`, so a `MessagesState` graph puts its whole LangChain message history into each
+  `STATE_SNAPSHOT`. That would duplicate the conversation in `shared_state` and reach the
+  64 KiB cap on long threads. The override drops the `messages` and `tools` keys: the
+  conversation arrives through the message events and `MESSAGES_SNAPSHOT`, and the tools
+  through `RunAgentInput.tools`.
 - `legacy_interrupts=True` (REQ-034.5, SHOULD) flips the two interrupt flags back and
   maps `CUSTOM(name="on_interrupt")` to a synthetic `pending_interrupt` resumed through
   `forwarded_props.command.resume`. It is off by default, documented as a compatibility
   mode, and is the **only** place where `forwarded_props` is used.
+  - **Verified (T-045):** the legacy event carries only the interrupt value, not its ID.
+    `run()` swallows the `on_interrupt` events and turns the plain `RUN_FINISHED` that
+    follows into `RUN_FINISHED(outcome=interrupt)` with a stateless synthetic ID:
+    `legacy-tool-<run_id>` for a `tool_call` value, `legacy-<run_id>` otherwise. The value
+    keys map as in `lg_interrupt_to_agui`, and the value is the payload.
+  - The legacy channel carries one resume value, so one interrupt is exposed per pause;
+    extra ones are dropped with a WARNING log record (count only).
+  - On resume, the `ResumeEntry` becomes `forwarded_props.command.resume` and
+    `RunAgentInput.resume` is cleared. A cancelled entry resumes as in the native mode
+    (cancelled approval or the `__agui_cancelled__` sentinel), told apart by the ID prefix.
 
 ### DD-013 — Tool renderers via `rx.match` (closes API Q-5)
 
@@ -420,9 +445,10 @@ allowed to fail and opens an issue when it does.
 - Assistant content is rendered with Reflex's built-in `rx.markdown`, with **no raw HTML**
   (no `rehype-raw` plugin). Tool args and results are rendered as text or code blocks,
   never as markdown.
-- **⟶ verify in task:** whether `rx.markdown` in 0.10.1 enables raw HTML by default. If it
-  does, pass the option that disables it. A test renders `<img src=x onerror=…>` and
-  asserts that it appears as text.
+- **Verified (T-036, OQ-3):** `rx.markdown` in Reflex 0.10.1 **enables raw HTML by
+  default** (`use_raw=True` adds the `rehype-raw` plugin). Every markdown the library
+  renders passes `use_raw=False`, and a test asserts that the rendered component carries
+  no `rehypeRaw` plugin, so `<img src=x onerror=…>` in model output stays text.
 
 ## 5. Patterns and Conventions
 
@@ -471,9 +497,10 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 ### 5.3 Error handling
 
 - Exceptions follow API §9.1.
-- Rule: **nothing escapes `_drive_run`**. Every exception maps to a status and an error
-  code in the final flush, and the traceback is logged at ERROR with the
-  `thread_id`/`run_id` context. `CancelledError` is handled as cancellation and not
+- Rule: **nothing escapes `drive_run`**. Every exception maps to a status and an error
+  code in the final flush. The failure is logged at ERROR with the `thread_id`/`run_id`
+  context, naming only the error code and the exception type; the traceback is logged at
+  DEBUG, because an agent's exception message may quote user content (REQ-027.2). `CancelledError` is handled as cancellation and not
   re-raised (the driver owns the task).
 - `ConfigurationError` is raised at import or startup time (`__init_subclass__`, adapter
   `__init__`, `client_tool` decoration), never mid-session.
@@ -485,12 +512,16 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 
 | Vector | Risk | Control |
 |---|---|---|
-| Browser triggers any public event handler with arbitrary args (Reflex event handlers are callable from the client) | State corruption, forged runs | Each handler validates its preconditions (API §4.3). `_drive_run` takes **no arguments** and runs only if it can claim `_pending_start` (one-shot), so a forged trigger is a no-op. |
+| Browser triggers any public event handler with arbitrary args (Reflex event handlers are callable from the client) | State corruption, forged runs | Each handler validates its preconditions (API §4.3). `drive_run` takes **no arguments** and runs only if it can claim `_pending_start` (one-shot), so a forged trigger is a no-op. |
+| Browser calls a hook (`create_client`, `prepare_run_input`, `on_custom_event`, `on_run_end`, `typed_shared_state`): Reflex registers every public state method as an event handler | An app's hook override (for example, one that persists or notifies in `on_run_end`) runs with forged arguments | `AgentState.__init_subclass__` marks the hooks, its own and every subclass override, with Reflex's `__override_base_method__` flag, so Reflex never registers them as handlers. A contract test pins the flag. |
 | Oversized payloads in `send_message`, `approve_tool(edited_args)`, `respond_to_interrupt` | Memory / cost abuse | `max_message_length` (32k chars). `edited_args` and interrupt payloads are capped at 64 KiB of serialized JSON → `INVALID_EDITED_ARGS` / ignored with a warning. Reflex's own frame size limit is the outer bound. |
 | `approve_tool` on another user's call | Cross-user action | Impossible: state is per token (REQ-003). Call IDs are looked up only in that session's `_conv`. |
 | LLM output with HTML/JS (XSS) | Script execution in users' browsers | DD-015: no raw HTML in markdown; args and results rendered as text. |
+| Prompt injection that makes the agent emit a markdown image or link to an attacker's URL carrying conversation data | Data exfiltration when the browser loads the image | Residual risk, documented on the security model page: `rx.markdown` (react-markdown) strips `javascript:` URLs but loads remote images. A stricter renderer (images as links) would change observable behavior and needs a delta spec. |
 | Prompt injection leading to dangerous tool calls | Unwanted actions | Product control: `requires_approval` tools (REQ-013/018.3) and the edit/reject UI. Documented in the security model page (REQ-033.3). |
+| Browser calls Reflex's built-in `setvar` | Writing public vars | Reflex 0.10 has no auto-setters, so `setvar` fails for our vars. Even if it did not, public vars are a projection of the backend-only `_conv`: a forged write changes only that user's own view until the next publish, never the input sent to the agent. |
 | A malicious or compromised AG-UI server (sidecar or third party) | Malformed events, huge streams | Schema validation per event (REQ-012.3). Bounded queue. `max_message_length` is *not* applied to agent output. Read timeout (REQ-021.4). Documented: the agent endpoint is trusted infrastructure. |
+| A failing endpoint echoes request headers in its error body | Secret in logs | `HttpAGUIClient` keeps the body out of the exception and the state; the excerpt is logged at DEBUG only, which REQ-027.2 already reserves for content. |
 | SSRF via `HttpAGUIClient` URL | — | The URL is developer configuration (`ClassVar` / `create_client`), never taken from the browser. |
 
 ### 6.2 Sensitive data
@@ -545,7 +576,7 @@ Not applicable (library).
 | SSE parser | pytest | Multi-line data, comments, CRLF, partial chunks | 021.2 |
 | `HttpAGUIClient` | pytest + local uvicorn Starlette fake server (DD-010) | Happy path, non-2xx, wrong content type, read timeout, EOF, **server observes disconnect on cancel**, headers never in errors or logs | 021, 007.2, 004.4 |
 | `RunDriver` | pytest-asyncio + `StateAccess` fake + scripted fake clients | Batching counts, flush on terminal, cancel (registry path and flag path), ownership loss, client-tool rounds, loop limit, handler timeout and exception | 006, 007, 018, 026 |
-| `AgentState` | Reflex state tested in process (instantiate the state class and invoke handlers through Reflex's testing utilities; the exact helper is chosen in the first state task) | Preconditions, projection, `ClassVar` validation, secret-leak test | 001–004, 013–017, 025 |
+| `AgentState` | Reflex state tested in process through Reflex's `BaseStateEventProcessor` over `StateManagerMemory` (OQ-1, `tests/helpers/reflex_harness.py`) | Preconditions, projection, `ClassVar` validation, secret-leak test | 001–004, 013–017, 025 |
 | Responsiveness | pytest-asyncio | A slow fake agent (offloaded 2 s of work) plus a second client's handler latency < 200 ms | 024.1 |
 | Multi-worker cancel (T-redis) | pytest + Redis service container in CI (one job) | Cancel handled by a "different worker": two `StateManagerRedis` instances | 007.6 |
 | Adapters | `TestModel` (PydanticAI); `FakeListChatModel` / scripted graph with `MemorySaver` (LangGraph) | Approval round-trip including edited args (the tool runs with the edited args), generic interrupt, multi-interrupt resume, cancelled interrupt, checkpointer error | 022, 034 |
@@ -585,9 +616,14 @@ and trusted publishing).
 
 ### 9.1 Deployment strategy
 
-The library ships to PyPI as `0.1.0` on a `v0.1.0` tag. Before that, release candidates go
-to TestPyPI (`0.1.0rc1`, …) with the same workflow, and a fresh-environment walkthrough of
-the quickstart is done (PRD §4.2 indicator). Upstream PR drafts (REQ-033.2) are submitted
+Releases are automatic (maintainer decision, 2026-10-31). When a push to `main` carries a
+publishable `__version__` (not `.dev`) with no `v<version>` tag yet, `release.yml` runs the
+tests, builds, publishes to PyPI through trusted publishing in the `pypi` environment, and
+creates the tag and a GitHub Release. A manually pushed `v*` tag that matches
+`__version__` publishes the same way. `0.1.0` ships like this; before it, pre-releases
+(`0.1.0a1`, `0.1.0rc1`, …) go to PyPI too, and there is no TestPyPI step. Installers
+skip pre-releases unless they are pinned exactly. A fresh-environment walkthrough of the
+quickstart follows each one (PRD §4.2 indicator). Upstream PR drafts (REQ-033.2) are submitted
 after `0.1.0` is on PyPI.
 
 ### 9.2 Backward compatibility
@@ -615,10 +651,10 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 
 | ID | Question | Owner / when |
 |---|---|---|
-| OQ-1 | The exact Reflex helper for invoking handlers on a state in tests (no browser) | First `AgentState` task; if none fits, test through `StateAccess` and keep a thin AppHarness smoke |
-| OQ-2 | The exact command or API that compiles an example in CI without starting servers | First smoke task |
-| OQ-3 | `rx.markdown` raw-HTML default in 0.10.1 (DD-015) | First `message_list` task |
-| OQ-4 | Report the ag-ui-langgraph `fastapi` import bug upstream | Before the LangGraph docs PR |
+| OQ-1 | ~~The exact Reflex helper for invoking handlers on a state in tests (no browser)~~ **Resolved (T-024, 2026-10-31):** Reflex 0.10.1's own `BaseStateEventProcessor`, configured with a `StateManagerMemory` (or `StateManagerRedis`) and a duck-typed `event_namespace` that records deltas, runs foreground and background handlers for any token with no app, server or browser. `EventFuture.wait_all()` waits for a handler's whole chain; background-task exceptions reach only the processor's `backend_exception_handler`, so the harness re-raises them. Wrapped in `tests/helpers/reflex_harness.py`. The driver itself is still unit-tested through the `StateAccess` fake. | — |
+| OQ-2 | ~~The exact command or API that compiles an example in CI without starting servers~~ **Resolved (T-040):** `reflex compile --dry` (Reflex 0.10.1) compiles every page without writing `.web` or installing the frontend, and needs no Node. CI runs it from the example directory with `AGENTKIT_MODEL=test`; the example's `rxconfig.py` then swaps PydanticAI's `models.infer_model` for one that returns `TestModel`, so the verbatim quickstart builds with no API key. Apps declare `rx.plugins.RadixThemesPlugin()`, because implicit Radix enablement is deprecated in 0.10.1. | — |
+| OQ-3 | ~~`rx.markdown` raw-HTML default in 0.10.1 (DD-015)~~ **Resolved (T-036):** raw HTML is on by default; the library passes `use_raw=False` (DD-015). | — |
+| OQ-4 | Report the ag-ui-langgraph `fastapi` import bug upstream. **Draft written (T-045):** `docs/integrations/upstream-issues.md`; a contract test fails once upstream fixes it. Filing it is the maintainer's step. | Maintainer, before the LangGraph docs PR |
 
 ---
 
@@ -643,4 +679,15 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.0 | 2026-10-30 | Ernesto Crespo (with Claude) | Initial version |
 | 1.1 | 2026-10-30 | Ernesto Crespo (with Claude) | Analyze fixes: lazy top-level re-exports (A-01); gates on core and state (A-04); `AGENT_EXCEPTION` mapping (A-06); frontend-tool termination fact added to the contract tests (A-18). |
 | 1.2 | 2026-10-31 | Ernesto Crespo (with Claude) | §8.4 item 4 refined while implementing T-004: on disconnect Reflex 0.10.1 cancels hydration and `on_load` chains only (spec drift rule). |
-| 1.3 | 2026-10-31 | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |
+| 1.3 | 2026-10-31 | Ernesto Crespo (with Claude) | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |
+| 1.4 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-1 resolved by the T-024 spike: handlers are tested through Reflex's `BaseStateEventProcessor` over an in-memory state manager; §8 updated. |
+| 1.5 | 2026-10-31 | Ernesto Crespo (with Claude) | §5.3 and Flow E: failures are logged at ERROR by error code and exception type only, with the traceback at DEBUG, so agent exception messages that quote user content never appear above DEBUG (REQ-027.2); found in T-026 (spec drift rule). |
+| 1.6 | 2026-10-31 | Ernesto Crespo (with Claude) | Flows A and C, §5.3, §6.1: the background handler is `drive_run`, because Reflex 0.10.1 rejects private event handlers (`ValueError: Event handlers cannot be private`); it stays a no-op unless it claims `_pending_start`. DD-006: the configuration check runs before Reflex binds the class, so a missing `ClassVar` raises `ConfigurationError`. Found in T-029 (spec drift rule). |
+| 1.7 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-015 and §11 OQ-3 resolved: `rx.markdown` enables raw HTML by default in Reflex 0.10.1, so components pass `use_raw=False`. Found in T-036. |
+| 1.8 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-2 resolved by T-040: examples compile in CI with `reflex compile --dry` and the `AGENTKIT_MODEL=test` swap in `rxconfig.py`. |
+| 1.9 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: `run()` uses a per-run `clone()` (upstream keeps per-run state on the instance) and `STATE_SNAPSHOT` drops the `messages` and `tools` keys. Found in T-042 (spec drift rule). |
+| 1.10 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: the legacy-interrupt mechanics (synthetic stateless IDs, one interrupt per pause, resume through `forwarded_props.command.resume`). §11 OQ-4: the upstream issue draft exists. Found in T-045. |
+| 1.11 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-001: example-only dependencies for the LangGraph Dojo's chat models (`langchain-anthropic`, `langchain-openai`), verified on PyPI. Added in T-046. |
+| 1.12 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: no TestPyPI; pre-releases and the final release go to PyPI through the `pypi` environment (maintainer decision). |
+| 1.13 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: releases are automatic on a push to `main` with a new publishable version (maintainer decision). |
+| 1.14 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: two vectors found in the T-049 security review — browser-callable hooks (now excluded from Reflex's handler registration), `setvar`, and markdown-image exfiltration as a documented residual risk; the HTTP error body excerpt is logged at DEBUG only. |

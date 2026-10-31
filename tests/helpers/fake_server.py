@@ -7,7 +7,8 @@ client disconnect (REQ-007.2). Each request plays the same script::
     server = fake_agui_server([send(event), sleep(0.1), send(event2), hang()])
     server.url, server.requests, server.disconnected
 
-Steps: ``send(event)`` (an event object, a dict or a raw data string), ``raw(text)``
+Steps: ``send(event)`` (an event object, a dict or a raw data string), ``reply(build)``
+(an event built from the parsed request body, e.g. to echo its run IDs), ``raw(text)``
 (bytes written verbatim), ``sleep(s)``, ``status(code)``, ``content_type(ct)`` (both
 before the first body step), ``close()`` (end the response; implied at the script's end)
 ``hang()`` (stay open until the client goes away) and ``abort()`` (drop the connection).
@@ -52,6 +53,11 @@ def send(event: BaseEvent | dict[str, Any] | str) -> Step:
     else:
         data = event
     return Step("raw", f"data: {data}\n\n")
+
+
+def reply(build: Callable[[Any], BaseEvent | dict[str, Any]]) -> Step:
+    """Write one SSE frame whose event is built from the parsed request body."""
+    return Step("reply", build)
 
 
 def raw(text: str) -> Step:
@@ -135,13 +141,15 @@ class FakeServer:
 
         watcher = asyncio.create_task(watch())
         try:
-            await self._play(send_, state, gone)
+            await self._play(send_, state, gone, parsed)
         finally:
             if not watcher.done():
                 await asyncio.wait({watcher}, timeout=0.5)
             watcher.cancel()
 
-    async def _play(self, send_: Send, state: dict[str, bool], gone: asyncio.Event) -> None:
+    async def _play(
+        self, send_: Send, state: dict[str, bool], gone: asyncio.Event, body: Any
+    ) -> None:
         code, ctype, started = 200, "text/event-stream", False
 
         async def start() -> None:
@@ -163,10 +171,11 @@ class FakeServer:
                 code = step.value
             elif step.kind == "content_type":
                 ctype = step.value
-            elif step.kind == "raw":
+            elif step.kind in ("raw", "reply"):
+                text = send(step.value(body)).value if step.kind == "reply" else step.value
                 await start()
                 await send_(
-                    {"type": "http.response.body", "body": step.value.encode(), "more_body": True}
+                    {"type": "http.response.body", "body": text.encode(), "more_body": True}
                 )
             elif step.kind == "sleep":
                 await start()

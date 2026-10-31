@@ -1,0 +1,69 @@
+site_name: reflex-agentkit
+site_description: The production UI layer for Python AI agents, built on Reflex and the AG-UI protocol.
+site_url: https://ecrespo.github.io/reflex-agentkit/
+repo_url: https://github.com/ecrespo/reflex-agentkit
+repo_name: ecrespo/reflex-agentkit
+edit_uri: edit/develop/docs/
+copyright: MIT License
+
+theme:
+  name: material
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.top
+    - search.highlight
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+
+# Planning notes for coding agents, not user documentation.
+exclude_docs: |
+  integration-prompts.md
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting started: getting-started.md
+  - Concepts: concepts.md
+  - Guides:
+      - Your own UI: guides/own-ui.md
+      - Human in the loop: guides/human-in-the-loop.md
+      - Sidecar deployment: guides/sidecar.md
+      - Local models with Ollama: guides/ollama.md
+  - Reference:
+      - AgentState: reference/agent-state.md
+      - Components: reference/components.md
+      - Client tools: reference/client-tools.md
+      - Agent clients: reference/clients.md
+      - Adapters: reference/adapters.md
+      - Core types and reducer: reference/core.md
+      - Errors: reference/errors.md
+  - Security model: security.md
+  - Troubleshooting: troubleshooting.md
+  - Integrations:
+      - AG-UI integrations table: integrations/ag-ui-integration-entry.md
+      - PydanticAI docs page: integrations/pydantic-ai-ui-with-reflex.md
+      - LangGraph docs page: integrations/langgraph-frontend-with-reflex.md
+      - Upstream issues: integrations/upstream-issues.md

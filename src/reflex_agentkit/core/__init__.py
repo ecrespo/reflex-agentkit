@@ -25,6 +25,7 @@ from reflex_agentkit.core.models import (
     ToolCall,
     ToolCallStatus,
 )
+from reflex_agentkit.core.reducer import reduce
 from reflex_agentkit.core.run_input import RunInputBuilder
 from reflex_agentkit.core.tools import ClientTool, client_tool
 
@@ -51,4 +52,5 @@ __all__ = [
     "ToolCall",
     "ToolCallStatus",
     "client_tool",
+    "reduce",
 ]

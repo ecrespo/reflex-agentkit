@@ -11,6 +11,7 @@ from ag_ui.core import ResumeEntry
 from helpers.invariants import check_invariants
 
 from reflex_agentkit.core.commands import (
+    MAX_PATCH_OPS,
     MAX_PAYLOAD_BYTES,
     all_answered,
     apply_approval,
@@ -18,9 +19,15 @@ from reflex_agentkit.core.commands import (
     apply_client_tool_result,
     apply_interrupt_response,
     apply_rejection,
+    apply_shared_state_patch,
+    apply_shared_state_write,
+    begin_retry,
     begin_run,
     new_thread,
+    request_local_approvals,
     resume_entries,
+    revert_shared_state,
+    start_client_tool_round,
 )
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import ErrorCode
@@ -29,6 +36,7 @@ from reflex_agentkit.core.models import (
     InterruptAnswer,
     MessageRole,
     OpenInterrupt,
+    ReasoningRecord,
     ReducerConfig,
     RunStatus,
     ToolCall,
@@ -422,6 +430,81 @@ def test_REQ_018_2_client_tool_result_for_a_non_running_call_is_ignored() -> Non
     assert apply_client_tool_result(conv, "ghost", "x") is conv
 
 
+def _running_client_call(call_id: str = "c1") -> ToolCall:
+    return ToolCall(
+        id=call_id,
+        name="pick",
+        status=ToolCallStatus.RUNNING,
+        is_client_tool=True,
+        parent_message_id="m1",
+        args={"day": 1},
+    )
+
+
+def test_REQ_018_3_local_approval_pauses_with_a_local_interrupt() -> None:
+    """REQ-018.3, DM §3.4: an approval-required client tool waits on a local interrupt."""
+    calls = (_running_client_call("c1"), _running_client_call("c2"))
+    conv = _paused(calls=calls).with_(run_status=RunStatus.RUNNING)
+    conv = request_local_approvals(conv, ["c1"])
+    assert conv.run_status is RunStatus.AWAITING_INPUT
+    assert conv.interrupts == (
+        OpenInterrupt(id="local-c1", reason="tool_call", tool_call_id="c1", is_local=True),
+    )
+    assert conv.answers == {}
+    first, second = conv.tool_calls
+    assert (first.status, first.interrupt_id) == (ToolCallStatus.PENDING_APPROVAL, "local-c1")
+    assert second.status is ToolCallStatus.RUNNING
+    check_invariants(conv)
+
+
+def test_REQ_018_3_local_approval_round_trip_runs_the_call_locally() -> None:
+    """REQ-018.3: approving it makes the call ``running`` and never adds a resume entry."""
+    conv = _paused(calls=(_running_client_call(),)).with_(run_status=RunStatus.RUNNING)
+    conv = apply_approval(request_local_approvals(conv, ["c1"]), "c1", {"day": 9})
+    assert conv.run_status is RunStatus.IDLE
+    assert conv.tool_calls[0].status is ToolCallStatus.RUNNING
+    assert conv.tool_calls[0].args == {"day": 9}
+    resumed = begin_run(conv, config=CONFIG, resume=True)
+    assert resume_entries(resumed) == []
+
+
+@pytest.mark.parametrize("call_ids", [[], ["ghost"]])
+def test_REQ_018_3_local_approval_without_a_running_client_call_is_a_no_op(
+    call_ids: list[str],
+) -> None:
+    """REQ-018.3: nothing to approve leaves the conversation unchanged."""
+    conv = _paused(calls=(_running_client_call(),)).with_(run_status=RunStatus.RUNNING)
+    assert request_local_approvals(conv, call_ids) is conv
+    paused = _paused(_approval(), calls=(_pending_call(),))
+    assert request_local_approvals(paused, ["c1"]) is paused
+
+
+def test_DD_009_client_tool_rounds_are_counted() -> None:
+    """DD-009: each client-tool round increments the counter while under the limit."""
+    conv = _paused(calls=(_running_client_call(),)).with_(run_status=RunStatus.RUNNING)
+    conv = start_client_tool_round(conv, max_rounds=2)
+    conv = start_client_tool_round(conv, max_rounds=2)
+    assert (conv.client_tool_rounds, conv.run_status) == (2, RunStatus.RUNNING)
+
+
+def test_DD_009_exceeding_the_round_limit_is_a_run_error() -> None:
+    """DD-009: one round more than ``max_client_tool_rounds`` ends the run in ``error``."""
+    conv = _paused(calls=(_running_client_call(),)).with_(
+        run_status=RunStatus.RUNNING, client_tool_rounds=2
+    )
+    conv = start_client_tool_round(conv, max_rounds=2)
+    assert conv.run_status is RunStatus.ERROR
+    assert conv.error_code is ErrorCode.CLIENT_TOOL_LOOP_LIMIT
+    assert "2" in conv.error
+    check_invariants(conv)
+
+
+def test_DD_009_round_counter_resets_on_a_user_turn() -> None:
+    """DM §3.9: a user-initiated ``begin_run`` resets the round counter."""
+    conv = ConversationState.initial(CONFIG).with_(client_tool_rounds=5)
+    assert begin_run(conv, config=CONFIG, user_text="hi").client_tool_rounds == 0
+
+
 def test_REQ_002_3_new_thread_resets_the_conversation() -> None:
     """REQ-002.3: a new thread clears everything and gets a new ``thread_id``."""
     conv = apply_cancel(_paused(_approval(), calls=(_pending_call(),))).with_(
@@ -478,3 +561,215 @@ def test_REQ_015_1_begin_run_while_paused_is_a_no_op(start: dict[str, Any]) -> N
     """REQ-015.1, INV-6: a run cannot start while an interrupt is unanswered."""
     conv = _paused(_approval(), calls=(_pending_call(),))
     assert begin_run(conv, config=CONFIG, **start) is conv
+
+
+def test_REQ_004_4_failure_keeps_partial_content_and_closes_streams() -> None:
+    """TD Flow E: a transport failure ends the run in ``error``; content is kept."""
+    from reflex_agentkit.core.commands import apply_failure
+    from reflex_agentkit.core.reducer import INCOMPLETE_TOOL_CALL
+
+    conv = begin_run(ConversationState.initial(CONFIG), user_text="go", config=CONFIG)
+    conv = conv.with_(
+        messages=(
+            *conv.messages,
+            ChatMessage(
+                id="m1",
+                role=MessageRole.ASSISTANT,
+                content="part",
+                streaming=True,
+                tool_call_ids=("c1",),
+            ),
+        ),
+        tool_calls=(ToolCall(id="c1", name="t", parent_message_id="m1"),),
+        dirty_tool_args=frozenset({"c1"}),
+    )
+    after = apply_failure(conv, ErrorCode.AGENT_STREAM_ERROR, "stream ended unexpectedly")
+    assert (after.run_status, after.error_code, after.error) == (
+        RunStatus.ERROR,
+        ErrorCode.AGENT_STREAM_ERROR,
+        "stream ended unexpectedly",
+    )
+    assert after.messages[-1].content == "part"
+    assert after.messages[-1].streaming is False
+    assert (after.tool_calls[0].status, after.tool_calls[0].result) == (
+        ToolCallStatus.ERROR,
+        INCOMPLETE_TOOL_CALL,
+    )
+    check_invariants(after)
+
+
+def test_REQ_004_4_failure_outside_a_running_run_is_a_no_op() -> None:
+    """A failure reported after the run already ended changes nothing."""
+    from reflex_agentkit.core.commands import apply_failure
+
+    idle = ConversationState.initial(CONFIG)
+    assert apply_failure(idle, ErrorCode.AGENT_STREAM_ERROR, "x") is idle
+
+
+def test_REQ_018_3_local_approval_skips_backend_calls() -> None:
+    """REQ-018.3: only client-tool calls take a local approval."""
+    backend = ToolCall(id="b1", name="book", status=ToolCallStatus.RUNNING, parent_message_id="m1")
+    conv = _paused(calls=(backend,)).with_(run_status=RunStatus.RUNNING)
+    assert request_local_approvals(conv, ["b1"]) is conv
+
+
+def test_DD_009_round_outside_a_running_run_is_a_no_op() -> None:
+    """DD-009: no round is counted unless the run is running."""
+    conv = ConversationState.initial(CONFIG)
+    assert start_client_tool_round(conv, max_rounds=1) is conv
+
+
+# --- app-side shared-state writes (T-030, REQ-017) -----------------------------------------
+
+
+def _idle(**changes: object) -> ConversationState:
+    return ConversationState.initial(CONFIG).with_(**changes)
+
+
+def test_REQ_017_1_write_replaces_the_shared_state() -> None:
+    """REQ-017.1: an app write replaces ``shared_state`` and clears the stale flag."""
+    conv = apply_shared_state_write(_idle(shared_state={"a": 1}, shared_state_stale=True), {"b": 2})
+    assert (conv.shared_state, conv.shared_state_stale) == ({"b": 2}, False)
+    check_invariants(conv)
+
+
+def test_REQ_017_2_write_while_running_is_locked() -> None:
+    """REQ-017.2: the agent owns the state during a run."""
+    running = begin_run(_idle(shared_state={"a": 1}), config=CONFIG, user_text="go")
+    conv = apply_shared_state_write(running, {"b": 2})
+    assert conv.shared_state == {"a": 1}
+    assert conv.error_code is ErrorCode.SHARED_STATE_LOCKED
+    assert conv.error
+    assert conv.run_status is RunStatus.RUNNING
+    patched = apply_shared_state_patch(running, [{"op": "add", "path": "/b", "value": 2}])
+    assert patched.error_code is ErrorCode.SHARED_STATE_LOCKED
+
+
+@pytest.mark.parametrize("value", [[1, 2], "text", {"x": {1, 2}}, {"big": "x" * MAX_PAYLOAD_BYTES}])
+def test_REQ_017_1_write_of_a_non_object_or_oversized_value_is_invalid(value: object) -> None:
+    """INV-10, API §9.2: the value must be a JSON object within the payload cap."""
+    conv = apply_shared_state_write(_idle(shared_state={"a": 1}), value)
+    assert conv.shared_state == {"a": 1}
+    assert conv.error_code is ErrorCode.SHARED_STATE_INVALID
+
+
+def test_REQ_017_1_write_stores_a_copy() -> None:
+    """INV-10: the stored state does not alias the caller's dict."""
+    value = {"a": [1]}
+    conv = apply_shared_state_write(_idle(), value)
+    value["a"].append(2)
+    assert conv.shared_state == {"a": [1]}
+
+
+def test_REQ_017_1_patch_applies_atomically() -> None:
+    """REQ-017.1: RFC 6902 ops are applied as one unit."""
+    conv = apply_shared_state_patch(
+        _idle(shared_state={"a": 1}), [{"op": "replace", "path": "/a", "value": 5}]
+    )
+    assert conv.shared_state == {"a": 5}
+    failed = apply_shared_state_patch(
+        conv,
+        [{"op": "add", "path": "/b", "value": 1}, {"op": "test", "path": "/a", "value": 0}],
+    )
+    assert failed.shared_state == {"a": 5}
+    assert failed.error_code is ErrorCode.SHARED_STATE_PATCH_FAILED
+
+
+@pytest.mark.parametrize(
+    "ops",
+    [{"op": "add"}, ["not an op"], [{"op": "add", "path": "/x", "value": "y" * MAX_PAYLOAD_BYTES}]],
+)
+def test_REQ_017_1_malformed_or_oversized_patch_fails(ops: object) -> None:
+    """API §9.2: a malformed or oversized patch changes nothing."""
+    conv = apply_shared_state_patch(_idle(shared_state={"a": 1}), ops)
+    assert conv.shared_state == {"a": 1}
+    assert conv.error_code is ErrorCode.SHARED_STATE_PATCH_FAILED
+
+
+def test_REQ_016_5_revert_keeps_the_previous_state_and_marks_it_stale() -> None:
+    """REQ-016.5: a value that fails ``shared_state_model`` is rejected like a failed delta."""
+    conv = revert_shared_state(_idle(shared_state={"a": "bad"}), {"a": 1})
+    assert conv.shared_state == {"a": 1}
+    assert conv.shared_state_stale is True
+    assert conv.error_code is ErrorCode.SHARED_STATE_INVALID
+    assert conv.diagnostics[-1].level == "warning"
+
+
+# --- retry (T-030, REQ-028) ------------------------------------------------------------------
+
+
+def _failed_turn() -> ConversationState:
+    conv = begin_run(
+        _idle(), config=CONFIG, user_text="first", new_id=iter(["t", "r1", "u1"]).__next__
+    )
+    messages = (
+        *conv.messages,
+        ChatMessage(id="a1", role=MessageRole.ASSISTANT, content="one", tool_call_ids=("c1",)),
+        ChatMessage(id="u2", role=MessageRole.USER, content="second"),
+        ChatMessage(id="a2", role=MessageRole.ASSISTANT, content="partial", tool_call_ids=("c2",)),
+    )
+    calls = (
+        ToolCall(id="c1", name="book", status=ToolCallStatus.DONE, parent_message_id="a1"),
+        ToolCall(id="c2", name="book", status=ToolCallStatus.ERROR, parent_message_id="a2"),
+    )
+    reasoning = (
+        ReasoningRecord(id="r-a1", assistant_message_id="a1", content="x"),
+        ReasoningRecord(id="r-a2", assistant_message_id="a2", content="y"),
+    )
+    return conv.with_(
+        messages=messages,
+        tool_calls=calls,
+        reasoning=reasoning,
+        run_status=RunStatus.ERROR,
+        error="boom",
+        error_code=ErrorCode.AGENT_RUN_ERROR,
+        client_tool_rounds=3,
+    )
+
+
+def test_REQ_028_1_retry_truncates_after_the_last_user_message_and_starts_a_run() -> None:
+    """REQ-028.1: the same messages up to the last ``user`` message, in a new run."""
+    conv = begin_retry(_failed_turn(), config=CONFIG, new_id=lambda: "r2")
+    assert [m.id for m in conv.messages] == ["u1", "a1", "u2"]
+    assert [c.id for c in conv.tool_calls] == ["c1"]
+    assert [r.id for r in conv.reasoning] == ["r-a1"]
+    assert (conv.run_status, conv.run_id, conv.thread_id) == (RunStatus.RUNNING, "r2", "t")
+    assert (conv.error, conv.error_code) == ("", None)
+    assert conv.last_run_ids == ("r2",)
+    assert conv.client_tool_rounds == 0
+    check_invariants(conv)
+
+
+@pytest.mark.parametrize("status", [RunStatus.IDLE, RunStatus.RUNNING, RunStatus.AWAITING_INPUT])
+def test_REQ_028_1_retry_in_other_states_is_a_no_op(status: RunStatus) -> None:
+    """API §4.3: ``retry_run`` is allowed only from ``error`` or ``cancelled``."""
+    conv = _failed_turn().with_(run_status=status)
+    assert begin_retry(conv, config=CONFIG) is conv
+
+
+def test_REQ_028_1_retry_without_a_user_message_is_a_no_op() -> None:
+    """REQ-028.1: there is nothing to retry before the first user message."""
+    conv = _idle(run_status=RunStatus.CANCELLED)
+    assert begin_retry(conv, config=CONFIG) is conv
+
+
+def test_REQ_017_1_patch_cannot_grow_exponentially() -> None:
+    """Security: repeated ``copy`` ops are stopped at the size cap, op by op."""
+    ops = [{"op": "add", "path": "/a", "value": "x" * 1024}]
+    ops += [
+        {"op": "copy", "from": "/a", "path": "/a2"},
+        {"op": "move", "from": "/a2", "path": "/b"},
+    ]
+    doubling = [{"op": "add", "path": "/a", "value": ["x" * 1024]}]
+    doubling += [{"op": "copy", "from": "/a", "path": "/a/-"} for _ in range(200)]
+    conv = apply_shared_state_patch(_idle(), doubling)
+    assert conv.shared_state == {}
+    assert conv.error_code is ErrorCode.SHARED_STATE_PATCH_FAILED
+    assert apply_shared_state_patch(_idle(), ops).shared_state["b"] == "x" * 1024
+
+
+def test_REQ_017_1_patch_with_too_many_ops_fails() -> None:
+    """Security: one call carries at most ``MAX_PATCH_OPS`` operations."""
+    ops = [{"op": "add", "path": f"/k{i}", "value": i} for i in range(MAX_PATCH_OPS + 1)]
+    conv = apply_shared_state_patch(_idle(), ops)
+    assert conv.error_code is ErrorCode.SHARED_STATE_PATCH_FAILED

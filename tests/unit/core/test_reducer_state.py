@@ -58,6 +58,10 @@ def _codes(conv: ConversationState) -> list[DiagnosticCode]:
     return [d.code for d in conv.diagnostics]
 
 
+def _delta(ops: list[dict[str, Any]]) -> StateDeltaEvent:
+    return StateDeltaEvent.model_validate({"delta": ops})
+
+
 def _snapshot(messages: list[dict[str, Any]]) -> MessagesSnapshotEvent:
     return MessagesSnapshotEvent.model_validate({"messages": messages})
 
@@ -88,8 +92,8 @@ def test_REQ_016_2_delta_applies_rfc6902_ops() -> None:
     conv = _apply(
         _started(),
         StateSnapshotEvent(snapshot={"count": 1, "tags": []}),
-        StateDeltaEvent(
-            delta=[
+        _delta(
+            [
                 {"op": "replace", "path": "/count", "value": 2},
                 {"op": "add", "path": "/tags/-", "value": "x"},
             ]
@@ -104,8 +108,8 @@ def test_REQ_016_3_failed_delta_leaves_state_marks_stale_and_warns() -> None:
     before = _apply(_started(), StateSnapshotEvent(snapshot={"count": 1}))
     conv = _apply(
         before,
-        StateDeltaEvent(
-            delta=[
+        _delta(
+            [
                 {"op": "replace", "path": "/count", "value": 9},
                 {"op": "remove", "path": "/missing"},
             ]
@@ -123,7 +127,7 @@ def test_REQ_016_4_later_snapshot_clears_stale() -> None:
     """REQ-016.4: a later snapshot clears ``shared_state_stale``."""
     conv = _apply(
         _started(),
-        StateDeltaEvent(delta=[{"op": "remove", "path": "/missing"}]),
+        _delta([{"op": "remove", "path": "/missing"}]),
         StateSnapshotEvent(snapshot={"fresh": True}),
     )
     assert conv.shared_state == {"fresh": True}
@@ -439,3 +443,38 @@ def test_REQ_011_2_encrypted_value_for_another_entity_is_not_retained() -> None:
     assert conv.with_(diagnostics=()) == before
     assert _codes(conv) == [DiagnosticCode.IGNORED_EVENT] * 2
     assert all(d.level == "debug" for d in conv.diagnostics)
+
+
+def test_REQ_011_1_reasoning_with_no_assistant_message_stays_unlinked() -> None:
+    """DM §3.6: with no assistant message at all, the record has no owner."""
+    conv = _started()
+    conv = _apply(
+        conv,
+        ReasoningMessageStartEvent(message_id="r1", role="reasoning"),
+        RunFinishedEvent(thread_id=conv.thread_id, run_id=conv.run_id),
+    )
+    assert conv.reasoning[0].assistant_message_id is None
+
+
+def test_REQ_016_5_pathologically_deep_snapshot_is_invalid_not_a_crash() -> None:
+    """REQ-005.1: a snapshot too deep to copy is rejected like a non-object snapshot."""
+    deep: dict[str, Any] = {}
+    node = deep
+    for _ in range(100_000):
+        node["n"] = {}
+        node = node["n"]
+    conv = reduce(_started(), StateSnapshotEvent(snapshot=deep))
+    assert conv.shared_state == {}
+    assert conv.shared_state_stale is True
+    assert _codes(conv) == [DiagnosticCode.INVALID_EVENT]
+
+
+def test_REQ_010_4_snapshot_lists_each_tool_call_once() -> None:
+    """INV-1: a call listed twice in the snapshot gets one record."""
+    call = {"id": "c1", "type": "function", "function": {"name": "t", "arguments": "{}"}}
+    conv = _apply(
+        _started(),
+        _snapshot([{"id": "a1", "role": "assistant", "toolCalls": [call, call]}]),
+    )
+    assert [c.id for c in conv.tool_calls] == ["c1"]
+    assert conv.messages[0].tool_call_ids == ("c1",)

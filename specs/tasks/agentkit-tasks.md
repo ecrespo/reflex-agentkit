@@ -223,7 +223,7 @@
 - **Depends on:** T-010
 - **Done:** `uv run pytest -k REQ_009 -q` passes. INV-3 holds.
 
-### T-013 · Reducer: state, messages snapshot, CUSTOM, reasoning · TF `[ ]`
+### T-013 · Reducer: state, messages snapshot, CUSTOM, reasoning · TF `[x] 2026-10-31`
 - **What:**
   - `STATE_SNAPSHOT`/`STATE_DELTA`, with a failed patch → stale + `PATCH_FAILED`.
   - `MESSAGES_SNAPSHOT` (DM §7.1), keeping the surviving tool calls.

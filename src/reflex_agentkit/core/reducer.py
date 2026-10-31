@@ -12,6 +12,7 @@ new upstream type never needs a code change to stay safe.
 
 from __future__ import annotations
 
+import copy
 import dataclasses
 import json
 from collections.abc import Callable, Mapping
@@ -19,11 +20,20 @@ from typing import Any
 
 from ag_ui.core import (
     BaseEvent,
+    CustomEvent,
     Event,
     EventType,
+    MessagesSnapshotEvent,
+    ReasoningEncryptedValueEvent,
+    ReasoningMessageChunkEvent,
+    ReasoningMessageContentEvent,
+    ReasoningMessageEndEvent,
+    ReasoningMessageStartEvent,
     RunErrorEvent,
     RunFinishedEvent,
     RunStartedEvent,
+    StateDeltaEvent,
+    StateSnapshotEvent,
     StepFinishedEvent,
     StepStartedEvent,
     TextMessageChunkEvent,
@@ -38,15 +48,18 @@ from ag_ui.core import (
 )
 from pydantic import TypeAdapter, ValidationError
 
+from reflex_agentkit.core._patch import PatchError, apply_patch
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import ErrorCode
 from reflex_agentkit.core.models import (
     ChatMessage,
+    CustomEventRecord,
     Diagnostic,
     DiagnosticCode,
     DiagnosticLevel,
     JsonObject,
     MessageRole,
+    ReasoningRecord,
     RunStatus,
     ToolCall,
     ToolCallStatus,
@@ -118,7 +131,31 @@ def _close_streams(conv: ConversationState, *, finished: bool) -> ConversationSt
             for c in conv.tool_calls
         )
         changes["dirty_tool_args"] = frozenset()
+    if any(r.assistant_message_id is None for r in conv.reasoning):
+        # DM §3.6: reasoning with no following assistant message joins the previous one.
+        last = _last_assistant_id(conv.messages)
+        if last is not None:
+            changes["reasoning"] = _link_reasoning(conv.reasoning, last)
     return conv.with_(**changes) if changes else conv
+
+
+def _last_assistant_id(messages: tuple[ChatMessage, ...]) -> str | None:
+    for msg in reversed(messages):
+        if msg.role is MessageRole.ASSISTANT:
+            return msg.id
+    return None
+
+
+def _link_reasoning(
+    records: tuple[ReasoningRecord, ...], assistant_id: str
+) -> tuple[ReasoningRecord, ...]:
+    """Attach every not-yet-linked reasoning record to ``assistant_id`` (DM §3.6)."""
+    return tuple(
+        dataclasses.replace(r, assistant_message_id=assistant_id)
+        if r.assistant_message_id is None
+        else r
+        for r in records
+    )
 
 
 def _stale(conv: ConversationState, run_id: str, event_type: str) -> ConversationState:
@@ -190,6 +227,13 @@ def _replace_message(conv: ConversationState, index: int, msg: ChatMessage) -> C
 
 
 def _append_message(conv: ConversationState, msg: ChatMessage) -> ConversationState:
+    """Append a message; a new assistant message owns the turn's pending reasoning."""
+    if msg.role is MessageRole.ASSISTANT and any(
+        r.assistant_message_id is None for r in conv.reasoning
+    ):
+        return conv.with_(
+            messages=(*conv.messages, msg), reasoning=_link_reasoning(conv.reasoning, msg.id)
+        )
     return conv.with_(messages=(*conv.messages, msg))
 
 
@@ -515,6 +559,303 @@ def _tool_result(conv: ConversationState, event: ToolCallResultEvent) -> Convers
     return _append_message(conv, tool_message)
 
 
+# --- shared state --------------------------------------------------------------------------
+
+
+def _state_snapshot(conv: ConversationState, event: StateSnapshotEvent) -> ConversationState:
+    """REQ-016.1, REQ-016.4: replace ``shared_state`` and clear ``shared_state_stale``."""
+    snapshot: object = event.snapshot
+    if isinstance(snapshot, dict):
+        try:
+            copied: JsonObject = copy.deepcopy(snapshot)
+        except RecursionError:
+            snapshot = None  # pathologically deep: treated as invalid below (REQ-005.1)
+        else:
+            return conv.with_(shared_state=copied, shared_state_stale=False)
+    conv = conv.with_(shared_state_stale=True, error_code=ErrorCode.SHARED_STATE_INVALID)
+    return _diag(
+        conv,
+        "warning",
+        DiagnosticCode.INVALID_EVENT,
+        "ignored a STATE_SNAPSHOT that is not a JSON object; shared state is stale",
+        EventType.STATE_SNAPSHOT.value,
+    )
+
+
+def _state_delta(conv: ConversationState, event: StateDeltaEvent) -> ConversationState:
+    """REQ-016.2-3: apply RFC 6902 ops atomically; on failure keep the state, mark stale."""
+    try:
+        ops: list[JsonObject] = [
+            op.model_dump(mode="json", by_alias=True, exclude_unset=True) for op in event.delta
+        ]
+        state = apply_patch(conv.shared_state, ops)
+    except PatchError as exc:
+        conv = conv.with_(shared_state_stale=True, error_code=ErrorCode.SHARED_STATE_PATCH_FAILED)
+        return _diag(
+            conv, "warning", DiagnosticCode.PATCH_FAILED, str(exc), EventType.STATE_DELTA.value
+        )
+    return conv.with_(shared_state=state)
+
+
+# --- CUSTOM --------------------------------------------------------------------------------
+
+
+def _custom(conv: ConversationState, event: CustomEvent) -> ConversationState:
+    """REQ-010.5, INV-9: keep the latest ``custom_events_limit`` events."""
+    limit = conv.config.custom_events_limit
+    if limit <= 0:
+        return conv
+    record = CustomEventRecord(name=event.name, value=event.value, run_id=conv.run_id)
+    return conv.with_(custom_events=(*conv.custom_events, record)[-limit:])
+
+
+# --- reasoning -----------------------------------------------------------------------------
+
+
+def _reasoning_position(conv: ConversationState, record_id: str) -> int | None:
+    for index, record in enumerate(conv.reasoning):
+        if record.id == record_id:
+            return index
+    return None
+
+
+def _replace_reasoning(
+    conv: ConversationState, index: int, record: ReasoningRecord
+) -> ConversationState:
+    return conv.with_(reasoning=(*conv.reasoning[:index], record, *conv.reasoning[index + 1 :]))
+
+
+def _add_reasoning(conv: ConversationState, record_id: str, content: str) -> ConversationState:
+    return conv.with_(reasoning=(*conv.reasoning, ReasoningRecord(id=record_id, content=content)))
+
+
+def _reasoning_delta(conv: ConversationState, index: int, delta: str) -> ConversationState:
+    record = conv.reasoning[index]
+    return _replace_reasoning(
+        conv, index, dataclasses.replace(record, content=record.content + delta)
+    )
+
+
+def _reasoning_unknown(
+    conv: ConversationState, record_id: str | None, event_type: str
+) -> ConversationState:
+    return _diag(
+        conv,
+        "warning",
+        DiagnosticCode.UNKNOWN_MESSAGE_ID,
+        f"ignored {event_type} for unknown reasoning message {record_id!r}",
+        event_type,
+    )
+
+
+def _reasoning_boundary(conv: ConversationState, event: BaseEvent) -> ConversationState:
+    """``REASONING_START``/``REASONING_END`` only frame the phase; nothing to record."""
+    return conv
+
+
+def _reasoning_start(
+    conv: ConversationState, event: ReasoningMessageStartEvent
+) -> ConversationState:
+    """REQ-011.1: start a reasoning record; it links to the turn's next assistant message."""
+    if _reasoning_position(conv, event.message_id) is not None:
+        return _diag(
+            conv,
+            "warning",
+            DiagnosticCode.DUPLICATE_ID,
+            f"ignored a second start of reasoning message {event.message_id!r}",
+            EventType.REASONING_MESSAGE_START.value,
+        )
+    return _add_reasoning(conv, event.message_id, "")
+
+
+def _reasoning_content(
+    conv: ConversationState, event: ReasoningMessageContentEvent
+) -> ConversationState:
+    """REQ-011.1: accumulate reasoning text (creating the record if it is unknown)."""
+    index = _reasoning_position(conv, event.message_id)
+    if index is not None:
+        return _reasoning_delta(conv, index, event.delta)
+    return _diag(
+        _add_reasoning(conv, event.message_id, event.delta),
+        "warning",
+        DiagnosticCode.IMPLICIT_MESSAGE,
+        f"created reasoning message {event.message_id!r} implicitly",
+        EventType.REASONING_MESSAGE_CONTENT.value,
+    )
+
+
+def _reasoning_end(conv: ConversationState, event: ReasoningMessageEndEvent) -> ConversationState:
+    """REQ-011.1: records have no streaming flag; END only checks the ID."""
+    if _reasoning_position(conv, event.message_id) is None:
+        return _reasoning_unknown(conv, event.message_id, EventType.REASONING_MESSAGE_END.value)
+    return conv
+
+
+def _reasoning_chunk(
+    conv: ConversationState, event: ReasoningMessageChunkEvent
+) -> ConversationState:
+    """REQ-011.1: a new ID starts a record; an ID-less chunk continues the last one."""
+    delta = event.delta or ""
+    if event.message_id is None:
+        if not conv.reasoning:
+            return _reasoning_unknown(conv, None, EventType.REASONING_MESSAGE_CHUNK.value)
+        return _reasoning_delta(conv, len(conv.reasoning) - 1, delta) if delta else conv
+    index = _reasoning_position(conv, event.message_id)
+    if index is None:
+        return _add_reasoning(conv, event.message_id, delta)
+    return _reasoning_delta(conv, index, delta) if delta else conv
+
+
+def _reasoning_encrypted(
+    conv: ConversationState, event: ReasoningEncryptedValueEvent
+) -> ConversationState:
+    """REQ-011.2: keep the opaque value server-side on its reasoning record (Art. 3).
+
+    Values for tool calls or for non-reasoning messages are not retained in v0.1
+    (DM §7.1 v1.4).
+    """
+    index = _reasoning_position(conv, event.entity_id) if event.subtype == "message" else None
+    if index is None:
+        return _diag(
+            conv,
+            "debug",
+            DiagnosticCode.IGNORED_EVENT,
+            f"encrypted value for {event.subtype} {event.entity_id!r} is not retained in v0.1",
+            EventType.REASONING_ENCRYPTED_VALUE.value,
+        )
+    record = dataclasses.replace(conv.reasoning[index], encrypted_value=event.encrypted_value)
+    return _replace_reasoning(conv, index, record)
+
+
+# --- MESSAGES_SNAPSHOT ---------------------------------------------------------------------
+
+
+def _snapshot_call(
+    conv: ConversationState, tool_call: Any, parent_id: str, results: dict[str, Any]
+) -> ToolCall:
+    """A record for a call listed in the snapshot: the existing one, or a new one."""
+    existing = _get_call(conv, tool_call.id)
+    if existing is not None:
+        return existing
+    name = tool_call.function.name
+    call = _end_call(
+        ToolCall(
+            id=tool_call.id,
+            name=name,
+            args_text=tool_call.function.arguments,
+            parent_message_id=parent_id,
+            is_client_tool=name in conv.config.client_tool_names,
+        )
+    )
+    result = results.get(tool_call.id)
+    if result is not None:
+        status = ToolCallStatus.ERROR if result.error else ToolCallStatus.DONE
+        call = dataclasses.replace(call, status=status, result=_content_text(result.content))
+    return call
+
+
+def _messages_snapshot(conv: ConversationState, event: MessagesSnapshotEvent) -> ConversationState:
+    """REQ-010.4, DM §7.1: rebuild ``messages`` from the snapshot.
+
+    Tool calls still listed keep their records (and statuses); others are dropped; calls
+    known only from the snapshot get new records. Reasoning messages become records
+    linked to the next assistant message (else the previous one); streamed reasoning of
+    surviving assistant messages is kept, so encrypted values are not lost. Activity
+    messages are not rendered. Repeated IDs and tool messages for unknown calls are
+    dropped with warnings (INV-1, INV-3).
+    """
+    event_type = EventType.MESSAGES_SNAPSHOT.value
+    results = {m.tool_call_id: m for m in event.messages if m.role == "tool"}
+    messages: list[ChatMessage] = []
+    calls: list[ToolCall] = []
+    snapshot_reasoning: list[ReasoningRecord] = []
+    seen: set[str] = set()
+    pending: list[int] = []
+    last_assistant: str | None = None
+    problems: list[tuple[DiagnosticCode, str]] = []
+
+    for m in event.messages:
+        if m.role == "activity":
+            continue
+        if m.id in seen:
+            problems.append((DiagnosticCode.DUPLICATE_ID, f"dropped repeated message {m.id!r}"))
+            continue
+        seen.add(m.id)
+        if m.role == "reasoning":
+            pending.append(len(snapshot_reasoning))
+            snapshot_reasoning.append(
+                ReasoningRecord(id=m.id, content=m.content or "", encrypted_value=m.encrypted_value)
+            )
+            continue
+        if m.role == "tool":
+            if m.tool_call_id not in {c.id for c in calls}:
+                problems.append(
+                    (
+                        DiagnosticCode.UNKNOWN_TOOL_CALL_ID,
+                        f"dropped tool message {m.id!r} for unknown tool call {m.tool_call_id!r}",
+                    )
+                )
+                continue
+            messages.append(
+                ChatMessage(
+                    id=m.id,
+                    role=MessageRole.TOOL,
+                    content=_content_text(m.content),
+                    tool_call_id=m.tool_call_id,
+                    is_error=bool(m.error),
+                )
+            )
+            continue
+        if m.role == "assistant":
+            call_ids: list[str] = []
+            for tool_call in m.tool_calls or []:
+                if tool_call.id in call_ids or any(c.id == tool_call.id for c in calls):
+                    continue
+                calls.append(_snapshot_call(conv, tool_call, m.id, results))
+                call_ids.append(tool_call.id)
+            messages.append(
+                ChatMessage(
+                    id=m.id,
+                    role=MessageRole.ASSISTANT,
+                    content=_content_text(m.content or ""),
+                    tool_call_ids=tuple(call_ids),
+                )
+            )
+            for index in pending:
+                snapshot_reasoning[index] = dataclasses.replace(
+                    snapshot_reasoning[index], assistant_message_id=m.id
+                )
+            pending.clear()
+            last_assistant = m.id
+            continue
+        messages.append(
+            ChatMessage(id=m.id, role=MessageRole(m.role), content=_content_text(m.content))
+        )
+
+    for index in pending:
+        snapshot_reasoning[index] = dataclasses.replace(
+            snapshot_reasoning[index], assistant_message_id=last_assistant
+        )
+    message_ids = {msg.id for msg in messages}
+    snapshot_ids = {r.id for r in snapshot_reasoning}
+    kept_reasoning = tuple(
+        r
+        for r in conv.reasoning
+        if r.id not in snapshot_ids
+        and (r.assistant_message_id is None or r.assistant_message_id in message_ids)
+    )
+    call_id_set = {c.id for c in calls}
+    conv = conv.with_(
+        messages=tuple(messages),
+        tool_calls=tuple(calls),
+        reasoning=(*kept_reasoning, *snapshot_reasoning),
+        dirty_tool_args=conv.dirty_tool_args & call_id_set,
+    )
+    for code, message in problems:
+        conv = _diag(conv, "warning", code, message, event_type)
+    return conv
+
+
 _HANDLERS: dict[str, Handler] = {
     EventType.RUN_STARTED: _run_started,
     EventType.RUN_FINISHED: _run_finished,
@@ -530,6 +871,17 @@ _HANDLERS: dict[str, Handler] = {
     EventType.TOOL_CALL_END: _tool_end,
     EventType.TOOL_CALL_CHUNK: _tool_chunk,
     EventType.TOOL_CALL_RESULT: _tool_result,
+    EventType.STATE_SNAPSHOT: _state_snapshot,
+    EventType.STATE_DELTA: _state_delta,
+    EventType.MESSAGES_SNAPSHOT: _messages_snapshot,
+    EventType.CUSTOM: _custom,
+    EventType.REASONING_START: _reasoning_boundary,
+    EventType.REASONING_MESSAGE_START: _reasoning_start,
+    EventType.REASONING_MESSAGE_CONTENT: _reasoning_content,
+    EventType.REASONING_MESSAGE_END: _reasoning_end,
+    EventType.REASONING_MESSAGE_CHUNK: _reasoning_chunk,
+    EventType.REASONING_END: _reasoning_boundary,
+    EventType.REASONING_ENCRYPTED_VALUE: _reasoning_encrypted,
 }
 
 HANDLED_EVENT_TYPES: frozenset[str] = frozenset(_HANDLERS) | _IGNORED

@@ -2,14 +2,38 @@
 
 from __future__ import annotations
 
+import json
 import uuid
+from typing import Any
 
+import pytest
+from ag_ui.core import ResumeEntry
 from helpers.invariants import check_invariants
 
-from reflex_agentkit.core.commands import begin_run
+from reflex_agentkit.core.commands import (
+    MAX_PAYLOAD_BYTES,
+    all_answered,
+    apply_approval,
+    apply_cancel,
+    apply_client_tool_result,
+    apply_interrupt_response,
+    apply_rejection,
+    begin_run,
+    new_thread,
+    resume_entries,
+)
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import ErrorCode
-from reflex_agentkit.core.models import MessageRole, ReducerConfig, RunStatus
+from reflex_agentkit.core.models import (
+    ChatMessage,
+    InterruptAnswer,
+    MessageRole,
+    OpenInterrupt,
+    ReducerConfig,
+    RunStatus,
+    ToolCall,
+    ToolCallStatus,
+)
 
 CONFIG = ReducerConfig(client_tool_names=frozenset({"pick"}))
 
@@ -96,30 +120,6 @@ def test_REQ_005_2_begin_run_accepts_injected_ids() -> None:
 
 
 # --- human in the loop (T-015) ------------------------------------------------------------
-
-import json  # noqa: E402
-
-import pytest  # noqa: E402
-from ag_ui.core import ResumeEntry  # noqa: E402
-
-from reflex_agentkit.core.commands import (  # noqa: E402
-    MAX_PAYLOAD_BYTES,
-    all_answered,
-    apply_approval,
-    apply_cancel,
-    apply_client_tool_result,
-    apply_interrupt_response,
-    apply_rejection,
-    new_thread,
-    resume_entries,
-)
-from reflex_agentkit.core.models import (  # noqa: E402
-    ChatMessage,
-    InterruptAnswer,
-    OpenInterrupt,
-    ToolCall,
-    ToolCallStatus,
-)
 
 
 def _paused(*interrupts: OpenInterrupt, calls: tuple[ToolCall, ...] = ()) -> ConversationState:
@@ -471,3 +471,10 @@ def test_REQ_013_6_commands_outside_a_pause_are_ignored() -> None:
     conv = _paused(_approval(), calls=(_pending_call(),)).with_(run_status=RunStatus.RUNNING)
     assert apply_approval(conv, "c1") is conv
     assert apply_interrupt_response(conv, "x") is conv
+
+
+@pytest.mark.parametrize("start", [{"user_text": "hi"}, {"resume": True}], ids=["user", "resume"])
+def test_REQ_015_1_begin_run_while_paused_is_a_no_op(start: dict[str, Any]) -> None:
+    """REQ-015.1, INV-6: a run cannot start while an interrupt is unanswered."""
+    conv = _paused(_approval(), calls=(_pending_call(),))
+    assert begin_run(conv, config=CONFIG, **start) is conv

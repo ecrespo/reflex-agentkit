@@ -65,3 +65,55 @@ default-groups = ["dev"]
 
 [tool.uv.workspace]
 members = ["examples/*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+extend-exclude = [".web"]
+
+[tool.ruff.format]
+# Approved specs and docs are prose; never rewrite their code samples.
+exclude = ["*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ASYNC", "S"]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**" = ["S101"]
+
+[tool.mypy]
+python_version = "3.11"
+files = ["src/reflex_agentkit", "tests", "scripts"]
+mypy_path = "src"
+warn_unused_configs = true
+warn_redundant_casts = true
+warn_unused_ignores = true
+check_untyped_defs = true
+
+# Constitution Art. 7: strict typing on the pure core and the state engine.
+[[tool.mypy.overrides]]
+module = ["reflex_agentkit.core", "reflex_agentkit.core.*", "reflex_agentkit.state", "reflex_agentkit.state.*"]
+strict = true
+
+[tool.pytest.ini_options]
+minversion = "8.3"
+testpaths = ["tests"]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+xfail_strict = true
+markers = [
+    "slow: long-running tests",
+    "redis: needs a Redis server (Docker container)",
+    "bench: performance benchmarks",
+    "network: needs network access",
+]
+addopts = "-ra --strict-markers --cov --cov-report=term-missing -m 'not redis and not bench and not network'"
+
+[tool.coverage.run]
+source = ["reflex_agentkit"]
+branch = true
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+exclude_also = ["if TYPE_CHECKING:", "raise NotImplementedError", "\\.\\.\\."]

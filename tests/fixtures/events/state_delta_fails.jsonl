@@ -1,0 +1,6 @@
+{"fixture": "state_delta_fails", "reqs": ["REQ-016.3", "REQ-016.4"], "start": {"user_text": "go"}, "expect": {"run_status": "idle", "shared_state": {"count": 5}, "shared_state_stale": false, "error_code": "SHARED_STATE_PATCH_FAILED", "diagnostics.codes": ["PATCH_FAILED"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "STATE_SNAPSHOT", "snapshot": {"count": 1}}
+{"type": "STATE_DELTA", "delta": [{"op": "replace", "path": "/count", "value": 2}, {"op": "test", "path": "/count", "value": 99}]}
+{"type": "STATE_SNAPSHOT", "snapshot": {"count": 5}}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

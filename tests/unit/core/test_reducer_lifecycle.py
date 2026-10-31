@@ -253,7 +253,6 @@ def test_REQ_005_2_reduce_is_deterministic() -> None:
     assert first == second
 
 
-@pytest.mark.xfail(strict=True, reason="text/tool/state/reasoning handlers land in T-011…T-013")
 def test_REQ_005_1_every_known_event_type_is_handled_or_ignored() -> None:
     """REQ-005.1: the dispatch table covers the 31 AG-UI 1.0 event types."""
     from reflex_agentkit.core.reducer import HANDLED_EVENT_TYPES

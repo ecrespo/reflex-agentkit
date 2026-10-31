@@ -1,0 +1,9 @@
+{"fixture": "messages_snapshot", "reqs": ["REQ-010.4"], "start": {"user_text": "weather?"}, "expect": {"run_status": "idle", "messages": [{"id": "u0", "role": "system", "content": "Be brief."}, {"id": "u1", "role": "user", "content": "weather?"}, {"id": "a1", "role": "assistant", "content": "", "tool_call_ids": ["c1", "c2"]}, {"id": "t1", "role": "tool", "tool_call_id": "c1", "content": "sunny"}, {"id": "a2", "role": "assistant", "content": "It is sunny."}], "tool_calls": [{"id": "c1", "name": "get_weather", "status": "done", "result": "sunny"}, {"id": "c2", "name": "get_time", "status": "running", "args": {"tz": "UTC"}}], "reasoning": [{"id": "r1", "assistant_message_id": "a2", "content": "check"}], "diagnostics.codes": ["UNKNOWN_TOOL_CALL_ID"]}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "TOOL_CALL_START", "toolCallId": "c1", "toolCallName": "get_weather", "parentMessageId": "a1"}
+{"type": "TOOL_CALL_ARGS", "toolCallId": "c1", "delta": "{}"}
+{"type": "TOOL_CALL_END", "toolCallId": "c1"}
+{"type": "TOOL_CALL_RESULT", "toolCallId": "c1", "messageId": "t1", "content": "sunny"}
+{"type": "TOOL_CALL_START", "toolCallId": "gone", "toolCallName": "dropped", "parentMessageId": "a1"}
+{"type": "MESSAGES_SNAPSHOT", "messages": [{"id": "u0", "role": "system", "content": "Be brief."}, {"id": "u1", "role": "user", "content": "weather?"}, {"id": "a1", "role": "assistant", "toolCalls": [{"id": "c1", "type": "function", "function": {"name": "get_weather", "arguments": "{}"}}, {"id": "c2", "type": "function", "function": {"name": "get_time", "arguments": "{\"tz\": \"UTC\"}"}}]}, {"id": "t1", "role": "tool", "toolCallId": "c1", "content": "sunny"}, {"id": "t9", "role": "tool", "toolCallId": "nobody", "content": "orphan"}, {"id": "r1", "role": "reasoning", "content": "check"}, {"id": "a2", "role": "assistant", "content": "It is sunny."}]}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

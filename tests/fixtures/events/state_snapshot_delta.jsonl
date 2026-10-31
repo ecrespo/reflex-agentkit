@@ -1,0 +1,5 @@
+{"fixture": "state_snapshot_delta", "reqs": ["REQ-016.1", "REQ-016.2"], "start": {"user_text": "add a todo"}, "expect": {"run_status": "idle", "shared_state": {"todos": [{"title": "buy milk", "done": true}, {"title": "call mom", "done": false}]}, "shared_state_stale": false, "error_code": null, "diagnostics.codes": []}}
+{"type": "RUN_STARTED", "threadId": "$thread", "runId": "$run"}
+{"type": "STATE_SNAPSHOT", "snapshot": {"todos": [{"title": "buy milk", "done": false}]}}
+{"type": "STATE_DELTA", "delta": [{"op": "replace", "path": "/todos/0/done", "value": true}, {"op": "add", "path": "/todos/-", "value": {"title": "call mom", "done": false}}]}
+{"type": "RUN_FINISHED", "threadId": "$thread", "runId": "$run"}

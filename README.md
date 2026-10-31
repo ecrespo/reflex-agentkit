@@ -6,9 +6,9 @@ AG-UI-compatible agent. The production UI layer your agent was missing — no Ty
 no Streamlit.
 
 > **Status: pre-alpha, under active development.** Nothing is published on PyPI yet. The
-> pure core and the agent clients are implemented and tested; the Reflex state engine,
-> the components and the adapters are not. The API below marked *planned* does not exist
-> yet.
+> pure core, the agent clients and the Reflex state engine (`AgentState`) are implemented
+> and tested; the components and the adapters are not. The API below marked *planned*
+> does not exist yet.
 
 ## Progress
 
@@ -20,8 +20,9 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP0 — Foundation | Packaging (uv, hatchling), lint, types, tests, CI | ✅ done |
 | WP1 — Pure core | Models, reducer, commands, client tools, `RunInputBuilder`, property tests | ✅ done |
 | WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | ✅ done |
-| WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation | 🚧 next |
-| WP4+ — Adapters, components, examples | PydanticAI and LangGraph adapters, chat components, quickstart, docs | ⏳ planned |
+| WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation, client-tool rounds | ✅ done |
+| WP4 — PydanticAI adapter | `AGUIAgent` over a PydanticAI agent, tool approvals | 🚧 next |
+| WP5+ — LangGraph adapter, components, examples | LangGraph adapter, chat components, quickstart, docs | ⏳ planned |
 
 ## What works today: `reflex_agentkit.core`
 
@@ -112,6 +113,64 @@ async def main() -> None:
 
 asyncio.run(main())
 ```
+
+## What works today: `AgentState`
+
+`AgentState` is a Reflex state mixin that holds a conversation with an AG-UI agent. Its
+configuration is class-level (`ClassVar`), so the agent, its client and any API keys
+never become state vars sent to the browser. The chat components are not written yet, so
+this example builds the UI from plain Reflex components:
+
+```python
+from typing import ClassVar
+
+import reflex as rx
+
+from reflex_agentkit import AgentState, HttpAGUIClient
+
+
+class ChatState(AgentState, rx.State):
+    agent: ClassVar = HttpAGUIClient("http://localhost:8000/agent")
+    draft: str = ""
+
+    @rx.event
+    def set_draft(self, value: str) -> None:
+        self.draft = value
+
+    @rx.event
+    def submit(self):
+        text, self.draft = self.draft, ""
+        return ChatState.send_message(text)
+
+
+def index() -> rx.Component:
+    return rx.vstack(
+        rx.foreach(ChatState.messages, lambda m: rx.text(m.role, ": ", m.content)),
+        rx.cond(ChatState.error != "", rx.callout(ChatState.error, color_scheme="red")),
+        rx.hstack(
+            rx.input(value=ChatState.draft, on_change=ChatState.set_draft),
+            rx.button("Send", on_click=ChatState.submit, disabled=~ChatState.can_send),
+            rx.button("Stop", on_click=ChatState.cancel_run, disabled=~ChatState.is_running),
+        ),
+    )
+
+
+app = rx.App()
+app.add_page(index)
+```
+
+- **Streaming**: the reply streams in a background task; state pushes are batched (at most
+  one per `flush_interval_ms`, default 50 ms).
+- **Handlers**: `send_message`, `cancel_run` (stops within 1 s, also when another backend
+  worker handles the click), `approve_tool` / `reject_tool` (with edited arguments),
+  `respond_to_interrupt`, `new_thread`, `set_shared_state` / `patch_shared_state`,
+  `retry_run`. Calls that are not allowed in the current status are no-ops, so they are
+  safe to call from the browser at any time.
+- **Client tools**: `client_tools: ClassVar = (my_tool,)` runs `@client_tool` handlers on
+  the server and starts the follow-up run, with optional approval
+  (`@client_tool(requires_approval=True)`).
+- **Hooks**: override `create_client` (for example, per-user auth headers),
+  `prepare_run_input`, `on_custom_event` or `on_run_end`.
 
 ## Planned usage (not available yet)
 

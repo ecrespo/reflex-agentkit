@@ -33,5 +33,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   closed on cancel) and `InProcessAGUIClient` (runs an agent object in the event loop,
   cancellation reaches the agent); an incremental SSE parser; invalid events are skipped
   with a log record.
+- `AgentState`, the Reflex state mixin: `ClassVar` configuration validated when the class
+  is defined (`ConfigurationError` names the attribute); public vars projected from a
+  backend-only conversation (system messages, interrupt answers and encrypted reasoning
+  never reach the browser); computed vars `is_running`, `awaiting_input`,
+  `pending_approvals` and `can_send`; handlers `send_message`, `approve_tool`,
+  `reject_tool`, `respond_to_interrupt`, `cancel_run`, `new_thread`, `set_shared_state`,
+  `patch_shared_state` and `retry_run`; hooks `create_client`, `prepare_run_input`,
+  `on_custom_event` and `on_run_end`; `typed_shared_state()` with `shared_state_model`
+  validation of app writes and agent updates.
+- The run driver behind `AgentState`: streaming in a background task with batched pushes
+  (default 50 ms), cancellation within 1 s in the same worker or from another worker over
+  a shared state manager, client-tool rounds with follow-up runs, local approvals and a
+  loop limit, and silent stop when the conversation was replaced.
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.
+
+### Security
+
+- Reducer diagnostics are logged above DEBUG by code and event type only, since a failed
+  patch can quote shared-state values.
+- App-side shared-state patches are applied op by op under the 64 KiB cap and limited to
+  256 operations, so `copy` ops cannot grow the document exponentially.

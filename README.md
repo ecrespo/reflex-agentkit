@@ -5,10 +5,10 @@ chat, tool-call cards and human-in-the-loop approval for LangGraph, PydanticAI a
 AG-UI-compatible agent. The production UI layer your agent was missing — no TypeScript,
 no Streamlit.
 
-> **Status: pre-release.** Everything in v0.1 is implemented and tested: the pure core,
+> **Status: `0.1.0`, the first release.** Everything in v0.1 is implemented and tested: the pure core,
 > the agent clients, the Reflex state engine (`AgentState`), the chat components, both
-> adapters (PydanticAI and LangGraph) and the AG-UI Dojo examples. The release candidate
-> `0.1.0rc1` is ready for PyPI. Documentation: [`docs/`](docs/) (`uv run mkdocs serve`).
+> adapters (PydanticAI and LangGraph) and the AG-UI Dojo examples.
+> `pip install "reflex-agentkit[pydantic-ai]"` or `uv add "reflex-agentkit[pydantic-ai]"`. Documentation: [`docs/`](docs/) (`uv run mkdocs serve`).
 
 ## Why
 
@@ -137,10 +137,10 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | ✅ done |
 | WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation, client-tool rounds | ✅ done |
 | WP4 — PydanticAI adapter | `PydanticAIAgent`: a PydanticAI agent as an `AGUIAgent`, tool approvals, client tools | ✅ done |
-| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (PyPI publish pending the release setup) |
+| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done |
 | WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval`, legacy interrupts | ✅ done |
 | WP7 — Dojo examples | The five AG-UI Dojo demos for PydanticAI and LangGraph | ✅ done |
-| WP8 — Hardening, docs, release | Security review, benchmarks, documentation site, `0.1.0` on PyPI | 🚧 in progress (security, benchmarks and docs done) |
+| WP8 — Hardening, docs, release | Security review, benchmarks, documentation site, `0.1.0` on PyPI | ✅ done |
 
 ## What works today: `reflex_agentkit.core`
 

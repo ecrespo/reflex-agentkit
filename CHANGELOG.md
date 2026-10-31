@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-10-31
+
+The first release. `0.1.0rc1` was published on 2026-10-31 as its release candidate.
+
 ### Added
 
 - Project skeleton: uv/hatchling packaging, lint, type and test configuration, and CI.
@@ -92,12 +96,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - A weekly workflow that tests against the newest allowed dependency versions and opens
   an issue when they fail.
 
-### Changed
-
-- The package version is `0.1.0rc1`, the release candidate for `0.1.0`.
-
 ### Fixed
 
+- A tool call that a model sends in one chunk (Ollama through LangGraph) now shows its
+  arguments in the approval dialog: a messages snapshot fills in the arguments of a call
+  that streamed none. Found in the `0.1.0rc1` walkthrough.
 - A `TOOL_CALL_RESULT` no longer moves a rejected or failed tool call back to `done`.
 - A `MESSAGES_SNAPSHOT` now fills in the result of a tool call it keeps, so LangGraph tool
   calls end as `done` after their tool node runs.
@@ -113,3 +116,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   registered as Reflex event handlers, so the browser cannot call them.
 - The latest-dependencies workflow runs the newest, unvetted versions without a token or
   stored git credentials; a separate job reports failures.
+
+[Unreleased]: https://github.com/ecrespo/reflex-agentkit/compare/v0.1.0...HEAD
+[0.1.0]: https://github.com/ecrespo/reflex-agentkit/releases/tag/v0.1.0

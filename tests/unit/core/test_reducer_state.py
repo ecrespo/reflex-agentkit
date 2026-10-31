@@ -22,6 +22,7 @@ from ag_ui.core import (
     StateDeltaEvent,
     StateSnapshotEvent,
     TextMessageStartEvent,
+    ToolCallArgsEvent,
     ToolCallEndEvent,
     ToolCallResultEvent,
     ToolCallStartEvent,
@@ -482,13 +483,15 @@ def test_REQ_010_4_snapshot_lists_each_tool_call_once() -> None:
     assert conv.messages[0].tool_call_ids == ("c1",)
 
 
-def _kept_call_snapshot(tool: dict[str, Any] | None) -> MessagesSnapshotEvent:
+def _kept_call_snapshot(
+    tool: dict[str, Any] | None, arguments: str = "{}"
+) -> MessagesSnapshotEvent:
     messages: list[dict[str, Any]] = [
         {
             "id": "a1",
             "role": "assistant",
             "toolCalls": [
-                {"id": "c1", "type": "function", "function": {"name": "t", "arguments": "{}"}}
+                {"id": "c1", "type": "function", "function": {"name": "t", "arguments": arguments}}
             ],
         }
     ]
@@ -511,6 +514,31 @@ def test_DM_7_1_snapshot_fills_the_result_of_a_kept_call() -> None:
     [call] = conv.tool_calls
     assert (call.status, call.result) == (ToolCallStatus.DONE, "booked")
     check_invariants(conv)
+
+
+def test_DM_7_1_snapshot_fills_the_args_of_a_kept_call_that_streamed_none() -> None:
+    """DM v1.11: one-chunk tool calls reach ag-ui-langgraph's stream with no ARGS event."""
+    conv = reduce(_running_call(), _kept_call_snapshot(None, '{"city": "Lisbon", "nights": 2}'))
+    [call] = conv.tool_calls
+    assert call.args == {"city": "Lisbon", "nights": 2}
+    assert call.args_text == '{"city": "Lisbon", "nights": 2}'
+    assert call.status is ToolCallStatus.RUNNING
+    check_invariants(conv)
+
+
+def test_DM_7_1_snapshot_keeps_streamed_args_and_ignores_invalid_ones() -> None:
+    """Streamed args win; snapshot args that are not a JSON object are ignored."""
+    streamed = _apply(
+        _started(),
+        ToolCallStartEvent(tool_call_id="c1", tool_call_name="t", parent_message_id="a1"),
+        ToolCallArgsEvent(tool_call_id="c1", delta='{"city": "Porto"}'),
+        ToolCallEndEvent(tool_call_id="c1"),
+    )
+    kept = reduce(streamed, _kept_call_snapshot(None, '{"city": "Lisbon"}'))
+    assert kept.tool_calls[0].args == {"city": "Porto"}
+    for bad in ("[1, 2]", "{not json"):
+        conv = reduce(_running_call(), _kept_call_snapshot(None, bad))
+        assert (conv.tool_calls[0].args, conv.tool_calls[0].args_text) == ({}, "")
 
 
 def test_DM_7_1_snapshot_tool_error_fails_a_kept_call() -> None:
@@ -541,3 +569,11 @@ def test_DM_7_1_snapshot_does_not_overwrite_a_known_result() -> None:
     assert (conv.tool_calls[0].status, conv.tool_calls[0].result) == (ToolCallStatus.DONE, "first")
     running = reduce(_running_call(), _kept_call_snapshot(None))
     assert running.tool_calls[0].status is ToolCallStatus.RUNNING
+
+
+def test_DM_7_1_snapshot_never_replaces_edited_args() -> None:
+    """Arguments edited in an approval stay, even if the call streamed none."""
+    conv = _running_call()
+    edited = dataclasses.replace(conv.tool_calls[0], args={"city": "Porto"})
+    conv = reduce(conv.with_(tool_calls=(edited,)), _kept_call_snapshot(None, '{"city": "x"}'))
+    assert conv.tool_calls[0].args == {"city": "Porto"}

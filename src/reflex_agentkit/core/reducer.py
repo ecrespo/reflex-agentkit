@@ -816,6 +816,16 @@ def _reasoning_encrypted(
 # --- MESSAGES_SNAPSHOT ---------------------------------------------------------------------
 
 
+def _with_snapshot_args(call: ToolCall, arguments: str) -> ToolCall:
+    """``call`` with the snapshot's arguments if it streamed none and they are an object."""
+    if call.args_text.strip() or call.args or not arguments.strip():
+        return call  # streamed or edited arguments win
+    args = _parse_args(arguments)
+    if args is None:
+        return call
+    return dataclasses.replace(call, args_text=arguments, args=args)
+
+
 def _snapshot_call(
     conv: ConversationState, tool_call: Any, parent_id: str, results: dict[str, Any]
 ) -> ToolCall:
@@ -823,11 +833,14 @@ def _snapshot_call(
 
     A kept record with no result yet takes the one from the snapshot's ``tool`` message,
     as ``TOOL_CALL_RESULT`` would: ag-ui-langgraph sends a tool node's result only here
-    (DM v1.10). ``rejected`` and ``error`` stay terminal.
+    (DM v1.10). ``rejected`` and ``error`` stay terminal. A kept record that streamed no
+    arguments takes the snapshot's, when they parse to an object (DM v1.11): a tool call
+    sent in one chunk reaches ag-ui-langgraph's stream with no ``TOOL_CALL_ARGS``.
     """
     existing = _get_call(conv, tool_call.id)
     result = results.get(tool_call.id)
     if existing is not None:
+        existing = _with_snapshot_args(existing, tool_call.function.arguments)
         if result is None or existing.result is not None:
             return existing
         status: ToolCallStatus

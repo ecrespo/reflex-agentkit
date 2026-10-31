@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
-| **Status** | `APPROVED` |
+| **Status** | `APPROVED` · `RELEASED` in `0.1.0` (2026-10-31) |
 | **Version** | 1.3 |
 | **Date** | 2026-10-30 |
 | **Reviewers** | Ernesto Crespo |

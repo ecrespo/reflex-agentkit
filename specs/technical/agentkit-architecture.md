@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.13 |
+| **Version** | 1.14 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -513,11 +513,14 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 | Vector | Risk | Control |
 |---|---|---|
 | Browser triggers any public event handler with arbitrary args (Reflex event handlers are callable from the client) | State corruption, forged runs | Each handler validates its preconditions (API §4.3). `drive_run` takes **no arguments** and runs only if it can claim `_pending_start` (one-shot), so a forged trigger is a no-op. |
+| Browser calls a hook (`create_client`, `prepare_run_input`, `on_custom_event`, `on_run_end`, `typed_shared_state`): Reflex registers every public state method as an event handler | An app's hook override (for example, one that persists or notifies in `on_run_end`) runs with forged arguments | `AgentState.__init_subclass__` marks the hooks, its own and every subclass override, with Reflex's `__override_base_method__` flag, so Reflex never registers them as handlers. A contract test pins the flag. |
 | Oversized payloads in `send_message`, `approve_tool(edited_args)`, `respond_to_interrupt` | Memory / cost abuse | `max_message_length` (32k chars). `edited_args` and interrupt payloads are capped at 64 KiB of serialized JSON → `INVALID_EDITED_ARGS` / ignored with a warning. Reflex's own frame size limit is the outer bound. |
 | `approve_tool` on another user's call | Cross-user action | Impossible: state is per token (REQ-003). Call IDs are looked up only in that session's `_conv`. |
 | LLM output with HTML/JS (XSS) | Script execution in users' browsers | DD-015: no raw HTML in markdown; args and results rendered as text. |
 | Prompt injection leading to dangerous tool calls | Unwanted actions | Product control: `requires_approval` tools (REQ-013/018.3) and the edit/reject UI. Documented in the security model page (REQ-033.3). |
+| Browser calls Reflex's built-in `setvar` | Writing public vars | Reflex 0.10 has no auto-setters, so `setvar` fails for our vars. Even if it did not, public vars are a projection of the backend-only `_conv`: a forged write changes only that user's own view until the next publish, never the input sent to the agent. |
 | A malicious or compromised AG-UI server (sidecar or third party) | Malformed events, huge streams | Schema validation per event (REQ-012.3). Bounded queue. `max_message_length` is *not* applied to agent output. Read timeout (REQ-021.4). Documented: the agent endpoint is trusted infrastructure. |
+| A failing endpoint echoes request headers in its error body | Secret in logs | `HttpAGUIClient` keeps the body out of the exception and the state; the excerpt is logged at DEBUG only, which REQ-027.2 already reserves for content. |
 | SSRF via `HttpAGUIClient` URL | — | The URL is developer configuration (`ClassVar` / `create_client`), never taken from the browser. |
 
 ### 6.2 Sensitive data
@@ -686,3 +689,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.11 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-001: example-only dependencies for the LangGraph Dojo's chat models (`langchain-anthropic`, `langchain-openai`), verified on PyPI. Added in T-046. |
 | 1.12 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: no TestPyPI; pre-releases and the final release go to PyPI through the `pypi` environment (maintainer decision). |
 | 1.13 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: releases are automatic on a push to `main` with a new publishable version (maintainer decision). |
+| 1.14 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: two vectors found in the T-049 security review — browser-callable hooks (now excluded from Reflex's handler registration) and `setvar`; the HTTP error body excerpt is logged at DEBUG only. |

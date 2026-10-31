@@ -58,3 +58,25 @@ def test_REQ_026_1_state_processor_disconnect_only_cancels_page_load_chains() ->
     names = set(BaseStateEventProcessor._on_disconnect.__code__.co_names)
     assert names >= {"_pending_hydrates", "_superseded"}
     assert not names & {"_tasks", "_futures", "_token_queues"}
+
+
+def test_TD_6_1_public_methods_become_handlers_unless_flagged() -> None:
+    """TD §6.1: Reflex registers every public method as a browser-callable handler, and
+    skips functions flagged ``__override_base_method__`` (AgentState flags its hooks)."""
+
+    def flagged(self: Any) -> None:
+        pass
+
+    flagged.__override_base_method__ = True  # type: ignore[attr-defined]
+
+    class _HandlerFacts(rx.State):
+        count: int = 0
+
+        def plain(self) -> None:
+            pass
+
+        hidden = flagged
+
+    assert "plain" in _HandlerFacts.event_handlers
+    assert "hidden" not in _HandlerFacts.event_handlers
+    assert not hasattr(_HandlerFacts, "set_count")  # no auto-setters for setvar

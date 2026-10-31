@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **API version** | v1.5 (ships as package `0.1.0`) |
+| **API version** | v1.6 (ships as package `0.1.0`) |
 | **Date** | 2026-10-30 |
 | **Related PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.1 |
@@ -227,7 +227,10 @@ and the stream's end cannot corrupt state.
 ### 4.4 Overridable hooks (extension points)
 
 Each hook has a default implementation. A subclass overrides it with a normal method
-(not an event handler).
+(not an event handler). Reflex registers every public state method as an event handler
+the browser can call; `AgentState` excludes the hooks below and `typed_shared_state`
+(its own and every subclass override) from that registration, so the browser can never
+invoke them (TD §6.1).
 
 | Hook | Signature | Default | Called | Use for |
 |---|---|---|---|---|
@@ -809,3 +812,4 @@ def reduce(state: ConversationState, event: BaseEvent) -> ConversationState: ...
 | 1.3 | 2026-10-31 | §4.3 documents the background handler `drive_run` (Reflex rejects private handlers; TD v1.6). §4.4 adds `typed_shared_state()`, the typed accessor that REQ-016.6 requires and no section defined, and notes that hooks read configuration through `self.__class__` (Reflex binds them to a `StateProxy` during a run). Found in T-030 (spec drift rule). |
 | 1.4 | 2026-10-31 | §3 clarifies that `reflex_agentkit.core.__all__` leaves out `__version__` (the package version lives only in the top-level module). Found in T-039. |
 | 1.5 | 2026-10-31 | §7.6: one `LangGraphAGUIAgent` serves every session (per-run clone), and `shared_state` leaves out the graph's `messages` and `tools` keys. Found in T-042 (spec drift rule). |
+| 1.6 | 2026-10-31 | §4.4: the hooks and `typed_shared_state` are not browser-callable event handlers, including subclass overrides. Found in the T-049 security review. |

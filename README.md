@@ -10,6 +10,76 @@ no Streamlit.
 > and tested; the PydanticAI adapter is implemented; the components and the LangGraph adapter are not. The API below marked *planned*
 > does not exist yet.
 
+## Quickstart
+
+A streaming chat with a PydanticAI travel agent, one tool call shown as a card and one
+tool that waits for your approval. This is the whole app
+([`examples/quickstart/`](examples/quickstart/)):
+
+<!-- quickstart:start -->
+```python
+from typing import ClassVar
+
+import reflex as rx
+from pydantic_ai import Agent
+
+from reflex_agentkit import AgentState, agent_chat
+from reflex_agentkit.adapters.pydantic_ai import PydanticAIAgent
+
+travel_agent = Agent(
+    "anthropic:claude-sonnet-5-5",
+    instructions="You are a helpful travel assistant.",
+)
+
+
+@travel_agent.tool_plain
+def get_weather(city: str) -> str:
+    """Get the current weather for a city."""
+    return f"It is sunny and 22 °C in {city}."
+
+
+@travel_agent.tool_plain(requires_approval=True)
+def book_hotel(city: str, nights: int) -> str:
+    """Book a hotel room. Requires human approval."""
+    return f"Booked {nights} nights in {city}."
+
+
+class ChatState(AgentState, rx.State):
+    agent: ClassVar = PydanticAIAgent(travel_agent)
+
+
+def index() -> rx.Component:
+    return agent_chat(ChatState)
+
+
+app = rx.App()
+app.add_page(index)
+```
+<!-- quickstart:end -->
+
+Run it from a clone of this repo:
+
+```bash
+uv sync --all-extras
+cd examples/quickstart
+ANTHROPIC_API_KEY=sk-ant-... uv run --package quickstart reflex run
+```
+
+Ask it to plan a trip: it shows the `get_weather` call and opens the approval dialog
+before `book_hotel` runs. The agentkit components are built on Radix Themes, so the
+example's `rxconfig.py` adds `rx.plugins.RadixThemesPlugin()`.
+
+To use a local model instead of Claude, swap the model line for an Ollama model through
+PydanticAI's Ollama provider, for example `Agent("ollama:qwen3", ...)` with
+`OLLAMA_BASE_URL=http://localhost:11434/v1`.
+
+The components are in `reflex_agentkit.components`: `agent_chat` composes
+`message_list`, `tool_call_card`, `composer`, `run_status_bar`, `approval_dialog` and,
+with `show_shared_state=True`, `shared_state_panel`. Custom renderers for a tool
+(`tool_renderers={"get_weather": ...}`) or an interrupt reason
+(`interrupt_renderers={...}`) replace the default card body or form. Every control has
+an accessible label.
+
 ## Progress
 
 Work follows the approved spec chain in [`specs/`](specs/) and the task list in
@@ -115,12 +185,12 @@ async def main() -> None:
 asyncio.run(main())
 ```
 
-## What works today: `AgentState`
+## `AgentState` with your own UI
 
 `AgentState` is a Reflex state mixin that holds a conversation with an AG-UI agent. Its
 configuration is class-level (`ClassVar`), so the agent, its client and any API keys
-never become state vars sent to the browser. The chat components are not written yet, so
-this example builds the UI from plain Reflex components:
+never become state vars sent to the browser. `agent_chat` is optional: this example
+builds its own UI from plain Reflex components:
 
 ```python
 from typing import ClassVar
@@ -199,21 +269,6 @@ def book_hotel(city: str) -> str:
 
 class ChatState(AgentState, rx.State):
     agent: ClassVar = PydanticAIAgent(agent)
-```
-
-## Planned usage (not available yet)
-
-```python
-import reflex as rx
-from reflex_agentkit import AgentState, agent_chat
-
-
-class ChatState(AgentState, rx.State):
-    agent = my_pydantic_ai_agent   # or an HttpAGUIClient pointing at any AG-UI server
-
-
-def index() -> rx.Component:
-    return agent_chat(ChatState)
 ```
 
 ## Development

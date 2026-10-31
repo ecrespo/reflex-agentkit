@@ -615,7 +615,7 @@
   out of `sys.modules` (lazy re-exports, API §1). An a11y test asserts that every button and input in a rendered `agent_chat` has
   an aria-label or text.
 
-### T-040 · Quickstart example, smoke compile and gates `[ ]`
+### T-040 · Quickstart example, smoke compile and gates `[x] 2026-10-31`
 - **What:**
   - `examples/quickstart/` as a uv workspace member: `pyproject.toml`, `rxconfig.py`,
     `quickstart/quickstart.py` = API §2 verbatim.

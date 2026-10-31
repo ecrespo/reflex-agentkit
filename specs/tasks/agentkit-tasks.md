@@ -747,7 +747,9 @@
 
 ## WP8 — Hardening, docs, release
 
-### T-049 · Security review and benchmarks `[ ]`
+### T-049 · Security review and benchmarks `[x] 2026-10-31`
+> **Note:** TD §6.1 walked vector by vector in `tests/integration/test_security_vectors.py` (with the automated commit security review as a second pass). One finding was fixed: Reflex registered the hooks (`create_client`, `prepare_run_input`, `on_custom_event`, `on_run_end`, `typed_shared_state`) as browser-callable event handlers; `AgentState` now hides them, including overrides from any class in the MRO (TD v1.14, API v1.6). Markdown-image exfiltration is recorded as a medium residual risk (TD §6.1) pending a maintainer decision. Benchmarks: NFR-01 p95 30 µs (budget 1 ms; the DM §5 escape hatch is not needed), NFR-04 worst client p95 56 ms (budget 250 ms). No high or critical findings are open.
+
 - **What:**
   - Run `/security-review` on the branch and walk TD §6.1 vector by vector, adding a
     test per vector where one is missing (payload caps, forged trigger, XSS, header

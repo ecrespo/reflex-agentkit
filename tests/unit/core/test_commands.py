@@ -20,7 +20,9 @@ from reflex_agentkit.core.commands import (
     apply_rejection,
     begin_run,
     new_thread,
+    request_local_approvals,
     resume_entries,
+    start_client_tool_round,
 )
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import ErrorCode
@@ -420,6 +422,81 @@ def test_REQ_018_2_client_tool_result_for_a_non_running_call_is_ignored() -> Non
     conv = _paused(_approval(), calls=(_pending_call(),))
     assert apply_client_tool_result(conv, "c1", "x") is conv
     assert apply_client_tool_result(conv, "ghost", "x") is conv
+
+
+def _running_client_call(call_id: str = "c1") -> ToolCall:
+    return ToolCall(
+        id=call_id,
+        name="pick",
+        status=ToolCallStatus.RUNNING,
+        is_client_tool=True,
+        parent_message_id="m1",
+        args={"day": 1},
+    )
+
+
+def test_REQ_018_3_local_approval_pauses_with_a_local_interrupt() -> None:
+    """REQ-018.3, DM §3.4: an approval-required client tool waits on a local interrupt."""
+    calls = (_running_client_call("c1"), _running_client_call("c2"))
+    conv = _paused(calls=calls).with_(run_status=RunStatus.RUNNING)
+    conv = request_local_approvals(conv, ["c1"])
+    assert conv.run_status is RunStatus.AWAITING_INPUT
+    assert conv.interrupts == (
+        OpenInterrupt(id="local-c1", reason="tool_call", tool_call_id="c1", is_local=True),
+    )
+    assert conv.answers == {}
+    first, second = conv.tool_calls
+    assert (first.status, first.interrupt_id) == (ToolCallStatus.PENDING_APPROVAL, "local-c1")
+    assert second.status is ToolCallStatus.RUNNING
+    check_invariants(conv)
+
+
+def test_REQ_018_3_local_approval_round_trip_runs_the_call_locally() -> None:
+    """REQ-018.3: approving it makes the call ``running`` and never adds a resume entry."""
+    conv = _paused(calls=(_running_client_call(),)).with_(run_status=RunStatus.RUNNING)
+    conv = apply_approval(request_local_approvals(conv, ["c1"]), "c1", {"day": 9})
+    assert conv.run_status is RunStatus.IDLE
+    assert conv.tool_calls[0].status is ToolCallStatus.RUNNING
+    assert conv.tool_calls[0].args == {"day": 9}
+    resumed = begin_run(conv, config=CONFIG, resume=True)
+    assert resume_entries(resumed) == []
+
+
+@pytest.mark.parametrize("call_ids", [[], ["ghost"]])
+def test_REQ_018_3_local_approval_without_a_running_client_call_is_a_no_op(
+    call_ids: list[str],
+) -> None:
+    """REQ-018.3: nothing to approve leaves the conversation unchanged."""
+    conv = _paused(calls=(_running_client_call(),)).with_(run_status=RunStatus.RUNNING)
+    assert request_local_approvals(conv, call_ids) is conv
+    paused = _paused(_approval(), calls=(_pending_call(),))
+    assert request_local_approvals(paused, ["c1"]) is paused
+
+
+def test_DD_009_client_tool_rounds_are_counted() -> None:
+    """DD-009: each client-tool round increments the counter while under the limit."""
+    conv = _paused(calls=(_running_client_call(),)).with_(run_status=RunStatus.RUNNING)
+    conv = start_client_tool_round(conv, max_rounds=2)
+    conv = start_client_tool_round(conv, max_rounds=2)
+    assert (conv.client_tool_rounds, conv.run_status) == (2, RunStatus.RUNNING)
+
+
+def test_DD_009_exceeding_the_round_limit_is_a_run_error() -> None:
+    """DD-009: one round more than ``max_client_tool_rounds`` ends the run in ``error``."""
+    conv = _paused(calls=(_running_client_call(),)).with_(
+        run_status=RunStatus.RUNNING, client_tool_rounds=2
+    )
+    conv = start_client_tool_round(conv, max_rounds=2)
+    assert conv.run_status is RunStatus.ERROR
+    assert conv.error_code is ErrorCode.CLIENT_TOOL_LOOP_LIMIT
+    assert "2" in conv.error
+    check_invariants(conv)
+
+
+def test_DD_009_round_counter_resets_on_a_user_turn() -> None:
+    """DM §3.9: a user-initiated ``begin_run`` resets the round counter."""
+    conv = ConversationState.initial(CONFIG).with_(client_tool_rounds=5)
+    assert begin_run(conv, config=CONFIG, user_text="hi").client_tool_rounds == 0
 
 
 def test_REQ_002_3_new_thread_resets_the_conversation() -> None:

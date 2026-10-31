@@ -4,6 +4,9 @@ name: Latest dependencies
 # allowed by the ranges in pyproject.toml, in a throwaway copy of the lock, and run the
 # tests. It never changes the committed uv.lock and never blocks a merge; a failure
 # opens (or updates) an issue so the maintainer can decide whether to pin or adapt.
+#
+# The newest versions are unvetted code, so the job that installs them has no token and
+# no stored git credentials. A separate job, which installs nothing, files the issue.
 
 on:
   schedule:
@@ -16,40 +19,59 @@ permissions:
 jobs:
   latest:
     runs-on: ubuntu-latest
-    continue-on-error: true
     permissions:
       contents: read
-      issues: write
-    env:
-      GH_TOKEN: ${{ github.token }}
+    outputs:
+      failed: ${{ steps.tests.outcome == 'failure' }}
     steps:
       - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: "3.13"
-      - name: Upgrade the lock in a temporary copy
-        run: |
-          workdir="$(mktemp -d)"
-          cp -r . "${workdir}/repo"
-          echo "WORKDIR=${workdir}/repo" >> "${GITHUB_ENV}"
-          cd "${workdir}/repo"
-          uv lock --upgrade
-          git diff --stat -- uv.lock || true
-      - name: Tests against the newest versions
+      - name: Upgrade the lock in a temporary copy and run the tests
         id: tests
-        working-directory: ${{ env.WORKDIR }}
+        continue-on-error: true
         run: |
           set -o pipefail
-          uv sync --all-extras --all-packages
-          uv run pytest -q 2>&1 | tee "${RUNNER_TEMP}/pytest.log"
-          uv run python scripts/check_gated_coverage.py
+          log="${RUNNER_TEMP}/deps-latest.log"
+          workdir="$(mktemp -d)"
+          cp -r . "${workdir}/repo"
+          cd "${workdir}/repo"
+          {
+            uv lock --upgrade
+            uv sync --all-extras --all-packages
+            uv run pytest -q
+            uv run python scripts/check_gated_coverage.py
+          } 2>&1 | tee "${log}"
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: deps-latest-log
+          path: ${{ runner.temp }}/deps-latest.log
+          if-no-files-found: ignore
+
+  report:
+    needs: latest
+    if: needs.latest.outputs.failed == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          name: deps-latest-log
+          path: log/
       - name: Open or update the tracking issue
-        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           title="Tests fail with the latest dependency versions"
-          body="$(printf 'The weekly [latest-dependencies run](%s/%s/actions/runs/%s) failed.\n\nTail of the test log:\n\n```text\n%s\n```\n' \
-            "${GITHUB_SERVER_URL}" "${GITHUB_REPOSITORY}" "${GITHUB_RUN_ID}" \
-            "$(tail -n 40 "${RUNNER_TEMP}/pytest.log" 2>/dev/null || echo 'no log')")"
+          run_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+          tail_log="$(tail -n 40 log/deps-latest.log 2>/dev/null || echo 'no log')"
+          body="$(printf 'The weekly [latest-dependencies run](%s) failed.\n\nTail of the log:\n\n```text\n%s\n```\n' "${run_url}" "${tail_log}")"
           number="$(gh issue list --state open --search "in:title \"${title}\"" --json number --jq '.[0].number')"
           if [ -n "${number}" ]; then
             gh issue comment "${number}" --body "${body}"

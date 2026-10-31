@@ -155,3 +155,34 @@ async def test_REQ_021_5_aclose_is_idempotent() -> None:
     client = InProcessAGUIClient(ScriptedAgent([]))
     await client.aclose()
     await client.aclose()
+
+
+class _PlainIterator:
+    """An async iterator without ``aclose`` (not an async generator)."""
+
+    def __init__(self, events: list[BaseEvent]) -> None:
+        self._events = iter(events)
+
+    def __aiter__(self) -> _PlainIterator:
+        return self
+
+    async def __anext__(self) -> BaseEvent:
+        try:
+            return next(self._events)
+        except StopIteration:
+            raise StopAsyncIteration from None
+
+
+class _PlainAgent:
+    def run(self, run_input: RunAgentInput) -> AsyncIterator[BaseEvent]:
+        return _PlainIterator([STARTED, FINISHED])
+
+
+async def test_REQ_021_5_plain_async_iterators_are_supported() -> None:
+    """API §7.1: ``run`` may return any async iterator, not only an async generator."""
+    client = InProcessAGUIClient(_PlainAgent())
+    assert [e.type for e in await _collect(client)] == [
+        EventType.RUN_STARTED,
+        EventType.RUN_FINISHED,
+    ]
+    assert repr(client) == "InProcessAGUIClient(agent=_PlainAgent)"

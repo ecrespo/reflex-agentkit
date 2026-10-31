@@ -373,7 +373,7 @@
   - `test_REQ_021_6_headers_never_leak` checks `caplog` and the exception strings for
     the header value.
 
-### T-023 · `InProcessAGUIClient` · TF `[P]` `[ ]`
+### T-023 · `InProcessAGUIClient` · TF `[P]` `[x] 2026-10-31`
 - **What:** `core/clients/in_process.py`: wraps an `AGUIAgent`, validates the yielded
   events, propagates cancellation (the agent sees `CancelledError`), and maps agent
   exceptions to `AgentStreamError(reason="agent_raised")` with the original as

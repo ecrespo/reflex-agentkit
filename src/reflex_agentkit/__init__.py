@@ -11,10 +11,15 @@ import importlib
 from typing import Any
 
 from reflex_agentkit.core import (
+    AgentClient,
     AgentKitError,
+    AgentSource,
+    AGUIAgent,
     ClientTool,
     ConfigurationError,
     ErrorCode,
+    HttpAGUIClient,
+    InProcessAGUIClient,
     RunStatus,
     ToolCallStatus,
     client_tool,
@@ -26,10 +31,15 @@ __version__ = "0.1.0.dev0"
 _LAZY_EXPORTS: dict[str, str] = {}
 
 __all__ = [
+    "AGUIAgent",
+    "AgentClient",
     "AgentKitError",
+    "AgentSource",
     "ClientTool",
     "ConfigurationError",
     "ErrorCode",
+    "HttpAGUIClient",
+    "InProcessAGUIClient",
     "RunStatus",
     "ToolCallStatus",
     "__version__",

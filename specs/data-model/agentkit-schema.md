@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.5 |
+| **Version** | 1.6 |
 | **Date** | 2026-10-30 |
 | **PRD / API / TD** | [PRD v1.1](../prd/agentkit-v0.1.md) · [API v1.1](../api/agentkit-python-api-v1.md) · [TD v1.0](../technical/agentkit-architecture.md), all APPROVED |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.0 |
@@ -183,6 +183,7 @@ signature (API §11).
 | `interrupts` | `tuple[OpenInterrupt, ...]` | `()` | reducer (on pause), commands (cleared on `begin_run`) |
 | `answers` | `dict[str, InterruptAnswer]` | `{}` | commands |
 | `abandoned_interrupt_ids` | `tuple[str, ...]` | `()` | `apply_cancel` while paused **moves the non-local interrupt IDs here and clears `interrupts` and `answers`** (local client-tool approvals are dropped); consumed by the next `begin_run` (REQ-015.3, keeps INV-4) |
+| `resume` | `tuple[InterruptAnswer, ...]` | `()` | `begin_run`. The `RunAgentInput.resume` entries of the current run, captured from `answers` (non-local, in interrupt order) and `abandoned_interrupt_ids` (as `cancelled`) before `begin_run` clears `interrupts`, `answers` and `abandoned_interrupt_ids`. Read by `RunInputBuilder` through `commands.resume_entries` (the driver builds the input after `begin_run`, TD Flow A.4/C.3). Never projected. |
 | `custom_events` | `tuple[CustomEventRecord, ...]` | `()` | reducer (ring of `config.custom_events_limit`) |
 | `client_tool_rounds` | `int` | `0` | driver via commands (reset by a user-initiated `begin_run`) |
 | `last_run_ids` | `tuple[str, ...]` | `()` | `begin_run`. Run IDs of this turn; events from older runs are discarded (REQ-010.2). |
@@ -270,7 +271,7 @@ The other enums use lowercase values as listed.
 | `pending_interrupt` | the first `OpenInterrupt` with `tool_call_id is None` (not an approval), `not is_local` and no answer → `PendingInterrupt(queue_position, queue_size)`; else `None`. An interrupt is an approval exactly when it names a known tool call; a `tool_call` interrupt for an unknown call is stored with `tool_call_id=None` so it stays answerable. |
 | `shared_state`, `shared_state_stale`, `run_status`, `current_step`, `thread_id`, `run_id`, `error`, `error_code` | same-named fields |
 | `custom_events` | `list(conv.custom_events)` |
-| *(never projected)* | `reasoning[*].encrypted_value`, `interrupts`, `answers`, `abandoned_interrupt_ids`, `client_tool_rounds`, `last_run_ids`, `diagnostics`, `dirty_tool_args`, `config`, indexes |
+| *(never projected)* | `reasoning[*].encrypted_value`, `interrupts`, `answers`, `abandoned_interrupt_ids`, `resume`, `client_tool_rounds`, `last_run_ids`, `diagnostics`, `dirty_tool_args`, `config`, indexes |
 
 ### 7.3 AG-UI egress (`ConversationState` → `RunAgentInput.messages`)
 
@@ -379,3 +380,4 @@ v0.2 persistence."
 | 1.3 | 2026-10-31 | §7.1 `TOOL_CALL_RESULT` multimodal content is flattened to text in v0.1; found in T-012 (spec drift rule). |
 | 1.4 | 2026-10-31 | §7.1 precise ingress rules for `MESSAGES_SNAPSHOT`, `REASONING_ENCRYPTED_VALUE` (AG-UI 1.0 `subtype`/`entity_id`; non-reasoning targets not retained in v0.1) and non-object `STATE_SNAPSHOT`; found in T-013 (spec drift rule). |
 | 1.5 | 2026-10-31 | §7.2 `pending_interrupt` selects interrupts without a linked tool call (an approval for an unknown call would otherwise never be shown and the run would stay paused); found in T-014 (spec drift rule). |
+| 1.6 | 2026-10-31 | §3.10 new internal field `resume`: `begin_run` captures the resume entries before clearing the interrupt bookkeeping, because the driver builds `RunAgentInput` after `begin_run`. When the last open interrupt is answered, the command leaves `run_status = idle` (INV-4) until the handler calls `begin_run` under the same lock. Found in T-015 (spec drift rule). |

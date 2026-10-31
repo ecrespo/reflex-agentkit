@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.2 |
+| **Version** | 1.3 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -160,7 +160,9 @@ Reflex backend worker (one asyncio loop)
    validate, apply the pure command, and project.
 3. WHEN `commands.all_answered(conv)` holds, the handler calls `begin_run(conv, resume=…)`,
    sets `_pending_start`, and returns `_drive_run`. The flow continues at A.3 with
-   `RunAgentInput.resume` built by `commands.resume_entries(conv)`.
+   `RunAgentInput.resume` built by `commands.resume_entries(conv)`, which reads the
+   entries `begin_run` captured in `conv.resume` (DM §3.10 v1.6) before it cleared the
+   interrupts and answers.
 4. For client tools that were approved, the driver first runs the handler with the
    (possibly edited) args, Flow B.3, and then continues with the follow-up run. Client-tool
    approvals are local and never round-trip to the agent.
@@ -641,3 +643,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.0 | 2026-10-30 | Ernesto Crespo (with Claude) | Initial version |
 | 1.1 | 2026-10-30 | Ernesto Crespo (with Claude) | Analyze fixes: lazy top-level re-exports (A-01); gates on core and state (A-04); `AGENT_EXCEPTION` mapping (A-06); frontend-tool termination fact added to the contract tests (A-18). |
 | 1.2 | 2026-10-31 | Ernesto Crespo (with Claude) | §8.4 item 4 refined while implementing T-004: on disconnect Reflex 0.10.1 cancels hydration and `on_load` chains only (spec drift rule). |
+| 1.3 | 2026-10-31 | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |

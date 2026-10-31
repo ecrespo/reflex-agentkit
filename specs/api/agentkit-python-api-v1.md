@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **API version** | v1.3 (ships as package `0.1.0`) |
+| **API version** | v1.4 (ships as package `0.1.0`) |
 | **Date** | 2026-10-30 |
 | **Related PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.1 |
@@ -114,7 +114,7 @@ private and may change in any release.
 | Module | `__all__` |
 |---|---|
 | `reflex_agentkit` | `AgentState`, `agent_chat`, `client_tool`, `ClientTool`, `HttpAGUIClient`, `InProcessAGUIClient`, `AgentClient`, `AGUIAgent`, `AgentSource`, `RunStatus`, `ToolCallStatus`, `ErrorCode`, `AgentKitError`, `ConfigurationError`, `__version__` |
-| `reflex_agentkit.core` | everything above that does not depend on Reflex, plus `reduce`, `ConversationState`, `Diagnostic`, `ChatMessage`, `ToolCall`, `PendingInterrupt`, `CustomEventRecord`, `RunInputBuilder`, `AgentHTTPError`, `AgentStreamError`, `AdapterNotInstalledError` |
+| `reflex_agentkit.core` | everything above that does not depend on Reflex (all but `AgentState`, `agent_chat` and `__version__`), plus `reduce`, `ConversationState`, `Diagnostic`, `ChatMessage`, `ToolCall`, `PendingInterrupt`, `CustomEventRecord`, `RunInputBuilder`, `AgentHTTPError`, `AgentStreamError`, `AdapterNotInstalledError` |
 | `reflex_agentkit.components` | `agent_chat`, `message_list`, `composer`, `tool_call_card`, `approval_dialog`, `run_status_bar`, `shared_state_panel`, `ToolRenderer`, `InterruptRenderer` |
 | `reflex_agentkit.adapters.pydantic_ai` | `PydanticAIAgent` |
 | `reflex_agentkit.adapters.langgraph` | `LangGraphAGUIAgent`, `request_tool_approval`, `ApprovalDecision` |
@@ -804,3 +804,4 @@ def reduce(state: ConversationState, event: BaseEvent) -> ConversationState: ...
 | 1.1 | 2026-10-30 | TD v1.0 amendments A-1…A-7 (unreleased, so edited in place): quickstart with `ClassVar` and no `DeferredToolRequests` (23 lines); `ClassVar` rule for overrides; `max_client_tool_rounds` + `CLIENT_TOOL_LOOP_LIMIT`; PydanticAI output-type injection; LangGraph native interrupt keys, native multi-resume and cancelled-approval semantics; `RUN_FINISHED` cancelled outcome; Q-1…Q-5 resolved. |
 | 1.2 | 2026-10-30 | Analyze fixes: lazy top-level re-exports (A-01); `AGENT_CONNECT_ERROR` → `AGENT_EXCEPTION` (A-06); `ChatMessage.is_error` (A-08); cancelled-outcome and client-tool transitions noted in §4.5 (A-02, A-09); `__version__` single source (A-11); `retry_run` side-effect note (A-12); A-17 accepted and noted in §4.6. |
 | 1.3 | 2026-10-31 | §4.3 documents the background handler `drive_run` (Reflex rejects private handlers; TD v1.6). §4.4 adds `typed_shared_state()`, the typed accessor that REQ-016.6 requires and no section defined, and notes that hooks read configuration through `self.__class__` (Reflex binds them to a `StateProxy` during a run). Found in T-030 (spec drift rule). |
+| 1.4 | 2026-10-31 | §3 clarifies that `reflex_agentkit.core.__all__` leaves out `__version__` (the package version lives only in the top-level module). Found in T-039. |

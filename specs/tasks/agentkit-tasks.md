@@ -603,7 +603,7 @@
 - **Depends on:** T-029
 - **Done:** `uv run pytest -k "REQ_023_5 or REQ_023_7" -q` passes.
 
-### T-039 · `agent_chat` composition and accessibility pass `[ ]`
+### T-039 · `agent_chat` composition and accessibility pass `[x] 2026-10-31`
 - **What:** `components/chat.py`, the `agent_chat(state, *, tool_renderers, interrupt_renderers, show_shared_state, placeholder, **props)`
   composition. Public re-exports in `components/__init__.py` and in the top-level
   `reflex_agentkit/__init__.py` (`__all__` exactly as API §3).

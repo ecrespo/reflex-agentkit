@@ -84,7 +84,7 @@ def test_API_1_unknown_top_level_attribute_raises() -> None:
     import reflex_agentkit
 
     with pytest.raises(AttributeError):
-        _ = reflex_agentkit.does_not_exist  # type: ignore[attr-defined]
+        _ = reflex_agentkit.does_not_exist
 
 
 def test_REQ_031_2_importing_core_does_not_import_reflex() -> None:

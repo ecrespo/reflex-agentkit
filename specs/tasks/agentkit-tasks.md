@@ -69,7 +69,7 @@
   empty core (100 % of nothing). A deliberately untyped function in `core` makes `mypy`
   fail; it is removed before merge.
 
-### T-003 · CI workflow `[~]` (all jobs pass in a local simulation; waiting for the first PR to show the 6 checks green)
+### T-003 · CI workflow `[x] 2026-10-31` (PR #1: all 6 checks green)
 - **What:** `.github/workflows/ci.yml` with `astral-sh/setup-uv` (cache on) and these
   jobs:
   - `lint`;

@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.6 |
+| **Version** | 1.7 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -424,9 +424,10 @@ allowed to fail and opens an issue when it does.
 - Assistant content is rendered with Reflex's built-in `rx.markdown`, with **no raw HTML**
   (no `rehype-raw` plugin). Tool args and results are rendered as text or code blocks,
   never as markdown.
-- **⟶ verify in task:** whether `rx.markdown` in 0.10.1 enables raw HTML by default. If it
-  does, pass the option that disables it. A test renders `<img src=x onerror=…>` and
-  asserts that it appears as text.
+- **Verified (T-036, OQ-3):** `rx.markdown` in Reflex 0.10.1 **enables raw HTML by
+  default** (`use_raw=True` adds the `rehype-raw` plugin). Every markdown the library
+  renders passes `use_raw=False`, and a test asserts that the rendered component carries
+  no `rehypeRaw` plugin, so `<img src=x onerror=…>` in model output stays text.
 
 ## 5. Patterns and Conventions
 
@@ -622,7 +623,7 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 |---|---|---|
 | OQ-1 | ~~The exact Reflex helper for invoking handlers on a state in tests (no browser)~~ **Resolved (T-024, 2026-10-31):** Reflex 0.10.1's own `BaseStateEventProcessor`, configured with a `StateManagerMemory` (or `StateManagerRedis`) and a duck-typed `event_namespace` that records deltas, runs foreground and background handlers for any token with no app, server or browser. `EventFuture.wait_all()` waits for a handler's whole chain; background-task exceptions reach only the processor's `backend_exception_handler`, so the harness re-raises them. Wrapped in `tests/helpers/reflex_harness.py`. The driver itself is still unit-tested through the `StateAccess` fake. | — |
 | OQ-2 | The exact command or API that compiles an example in CI without starting servers | First smoke task |
-| OQ-3 | `rx.markdown` raw-HTML default in 0.10.1 (DD-015) | First `message_list` task |
+| OQ-3 | ~~`rx.markdown` raw-HTML default in 0.10.1 (DD-015)~~ **Resolved (T-036):** raw HTML is on by default; the library passes `use_raw=False` (DD-015). | — |
 | OQ-4 | Report the ag-ui-langgraph `fastapi` import bug upstream | Before the LangGraph docs PR |
 
 ---
@@ -652,3 +653,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.4 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-1 resolved by the T-024 spike: handlers are tested through Reflex's `BaseStateEventProcessor` over an in-memory state manager; §8 updated. |
 | 1.5 | 2026-10-31 | Ernesto Crespo (with Claude) | §5.3 and Flow E: failures are logged at ERROR by error code and exception type only, with the traceback at DEBUG, so agent exception messages that quote user content never appear above DEBUG (REQ-027.2); found in T-026 (spec drift rule). |
 | 1.6 | 2026-10-31 | Ernesto Crespo (with Claude) | Flows A and C, §5.3, §6.1: the background handler is `drive_run`, because Reflex 0.10.1 rejects private event handlers (`ValueError: Event handlers cannot be private`); it stays a no-op unless it claims `_pending_start`. DD-006: the configuration check runs before Reflex binds the class, so a missing `ClassVar` raises `ConfigurationError`. Found in T-029 (spec drift rule). |
+| 1.7 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-015 and §11 OQ-3 resolved: `rx.markdown` enables raw HTML by default in Reflex 0.10.1, so components pass `use_raw=False`. Found in T-036. |

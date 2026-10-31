@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.8 |
+| **Version** | 1.9 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -395,6 +395,16 @@ allowed to fail and opens an issue when it does.
     sentinel. The docs tell graph authors to check it.
 - The checkpointer check (REQ-034.4) happens in `__init__` (`graph.checkpointer is None`
   → `ConfigurationError`).
+- **Verified (T-042):** `LangGraphAgent` keeps per-run state on the instance
+  (`active_run`, `messages_in_process`), and its FastAPI endpoint clones it per request.
+  Our instance is a `ClassVar` shared by every session, so `run()` runs a fresh `clone()`
+  each time; `clone()` is overridden because our `__init__` signature differs.
+- **Verified (T-042):** upstream `get_state_snapshot` keeps every output key plus
+  `tools`, so a `MessagesState` graph puts its whole LangChain message history into each
+  `STATE_SNAPSHOT`. That would duplicate the conversation in `shared_state` and reach the
+  64 KiB cap on long threads. The override drops the `messages` and `tools` keys: the
+  conversation arrives through the message events and `MESSAGES_SNAPSHOT`, and the tools
+  through `RunAgentInput.tools`.
 - `legacy_interrupts=True` (REQ-034.5, SHOULD) flips the two interrupt flags back and
   maps `CUSTOM(name="on_interrupt")` to a synthetic `pending_interrupt` resumed through
   `forwarded_props.command.resume`. It is off by default, documented as a compatibility
@@ -655,3 +665,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.6 | 2026-10-31 | Ernesto Crespo (with Claude) | Flows A and C, §5.3, §6.1: the background handler is `drive_run`, because Reflex 0.10.1 rejects private event handlers (`ValueError: Event handlers cannot be private`); it stays a no-op unless it claims `_pending_start`. DD-006: the configuration check runs before Reflex binds the class, so a missing `ClassVar` raises `ConfigurationError`. Found in T-029 (spec drift rule). |
 | 1.7 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-015 and §11 OQ-3 resolved: `rx.markdown` enables raw HTML by default in Reflex 0.10.1, so components pass `use_raw=False`. Found in T-036. |
 | 1.8 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-2 resolved by T-040: examples compile in CI with `reflex compile --dry` and the `AGENTKIT_MODEL=test` swap in `rxconfig.py`. |
+| 1.9 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-012: `run()` uses a per-run `clone()` (upstream keeps per-run state on the instance) and `STATE_SNAPSHOT` drops the `messages` and `tools` keys. Found in T-042 (spec drift rule). |

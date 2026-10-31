@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **API version** | v1.4 (ships as package `0.1.0`) |
+| **API version** | v1.5 (ships as package `0.1.0`) |
 | **Date** | 2026-10-30 |
 | **Related PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.1 |
@@ -544,6 +544,9 @@ def request_tool_approval(
   `Command(resume={interrupt_id: payload})`.
 - IF `graph.checkpointer` is `None`, THEN `ConfigurationError` is raised in `__init__`
   (REQ-034.4).
+- One instance can serve every session: each `run()` works on a fresh clone. The
+  graph's `STATE_SNAPSHOT` reaches `shared_state` without its `messages` and `tools` keys,
+  which AG-UI already carries as the conversation and the client tools (TD DD-012).
 - `interrupt(value)` in the graph appears as `pending_interrupt` with
   `payload = value`. `respond_to_interrupt(p)` resumes the graph with
   `Command(resume=p)` (REQ-034.2).
@@ -805,3 +808,4 @@ def reduce(state: ConversationState, event: BaseEvent) -> ConversationState: ...
 | 1.2 | 2026-10-30 | Analyze fixes: lazy top-level re-exports (A-01); `AGENT_CONNECT_ERROR` → `AGENT_EXCEPTION` (A-06); `ChatMessage.is_error` (A-08); cancelled-outcome and client-tool transitions noted in §4.5 (A-02, A-09); `__version__` single source (A-11); `retry_run` side-effect note (A-12); A-17 accepted and noted in §4.6. |
 | 1.3 | 2026-10-31 | §4.3 documents the background handler `drive_run` (Reflex rejects private handlers; TD v1.6). §4.4 adds `typed_shared_state()`, the typed accessor that REQ-016.6 requires and no section defined, and notes that hooks read configuration through `self.__class__` (Reflex binds them to a `StateProxy` during a run). Found in T-030 (spec drift rule). |
 | 1.4 | 2026-10-31 | §3 clarifies that `reflex_agentkit.core.__all__` leaves out `__version__` (the package version lives only in the top-level module). Found in T-039. |
+| 1.5 | 2026-10-31 | §7.6: one `LangGraphAGUIAgent` serves every session (per-run clone), and `shared_state` leaves out the graph's `messages` and `tools` keys. Found in T-042 (spec drift rule). |

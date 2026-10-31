@@ -343,7 +343,7 @@
 - **Done:** `uv run pytest tests/unit/core/clients/test_sse.py -q` passes, with ≥ 8
   framing cases.
 
-### T-021 · Fake AG-UI SSE server fixture `[P]` `[ ]`
+### T-021 · Fake AG-UI SSE server fixture `[P]` `[x] 2026-10-31`
 - **What:** a pytest fixture `fake_agui_server(script)` that starts a Starlette app under
   `uvicorn` on an ephemeral port in a background thread. A script is a list of steps:
   `send(event)`, `sleep(s)`, `status(code)`, `content_type(ct)`, `close()`, `hang()`. The

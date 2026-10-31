@@ -6,7 +6,9 @@ from typing import Any
 
 from ag_ui.core import (
     BaseEvent,
+    EventType,
     RunFinishedEvent,
+    RunFinishedInterruptOutcome,
     RunStartedEvent,
     TextMessageContentEvent,
     ToolCallEndEvent,
@@ -194,9 +196,16 @@ def test_REQ_014_3_repeated_interrupt_ids_keep_the_first() -> None:
 
 
 def test_REQ_004_2_interrupt_outcome_without_interrupts_is_a_success() -> None:
-    """INV-4: an interrupt outcome with nothing to answer cannot pause the run."""
+    """INV-4, REQ-005.1: an interrupt outcome with nothing to answer cannot pause the run.
+
+    The protocol rejects an empty list at validation; ``reduce`` stays total anyway.
+    """
     conv = _started()
-    after = _apply(conv, _finish(conv, {"type": "interrupt", "interrupts": []}))
+    outcome = RunFinishedInterruptOutcome.model_construct(type="interrupt", interrupts=[])
+    event = RunFinishedEvent.model_construct(
+        type=EventType.RUN_FINISHED, thread_id=conv.thread_id, run_id=conv.run_id, outcome=outcome
+    )
+    after = _apply(conv, event)
     assert after.run_status is RunStatus.IDLE
     assert after.interrupts == ()
 

@@ -59,6 +59,7 @@ from reflex_agentkit.core.models import (
     DiagnosticLevel,
     JsonObject,
     MessageRole,
+    OpenInterrupt,
     ReasoningRecord,
     RunStatus,
     ToolCall,
@@ -193,11 +194,87 @@ def _run_started(conv: ConversationState, event: RunStartedEvent) -> Conversatio
     return conv
 
 
+def _interrupt_payload(metadata: object) -> Any:
+    """DM §3.4: LangGraph carries the ``interrupt(value)`` argument in its metadata."""
+    if isinstance(metadata, dict):
+        langgraph = metadata.get("langgraph")
+        if isinstance(langgraph, dict):
+            return langgraph.get("raw")
+    return None
+
+
+def _pause(conv: ConversationState, interrupts: list[Any]) -> ConversationState:
+    """REQ-004.2, REQ-013.1, REQ-014.1/3: store the interrupts in arrival order.
+
+    An interrupt is an approval exactly when it names a known tool call; that call goes
+    to ``pending_approval``. A ``tool_call`` interrupt naming an unknown call is kept as a
+    generic one (``tool_call_id=None``) so it can still be answered (DM §7.2 v1.5).
+    """
+    event_type = EventType.RUN_FINISHED.value
+    opened: list[OpenInterrupt] = []
+    for interrupt in interrupts:
+        if any(o.id == interrupt.id for o in opened):
+            conv = _diag(
+                conv,
+                "warning",
+                DiagnosticCode.DUPLICATE_ID,
+                f"dropped repeated interrupt {interrupt.id!r}",
+                event_type,
+            )
+            continue
+        call_id = interrupt.tool_call_id
+        if call_id is not None and call_id not in conv._tool_index:
+            conv = _diag(
+                conv,
+                "warning",
+                DiagnosticCode.UNKNOWN_TOOL_CALL_ID,
+                f"interrupt {interrupt.id!r} names unknown tool call {call_id!r};"
+                " it is presented as a generic interrupt",
+                event_type,
+            )
+            call_id = None
+        opened.append(
+            OpenInterrupt(
+                id=interrupt.id,
+                reason=interrupt.reason or "",
+                message=interrupt.message or "",
+                tool_call_id=call_id,
+                payload=_interrupt_payload(interrupt.metadata),
+                response_schema=interrupt.response_schema,
+            )
+        )
+        if call_id is not None:
+            call = conv.tool_calls[conv._tool_index[call_id]]
+            pending = dataclasses.replace(
+                call, status=ToolCallStatus.PENDING_APPROVAL, interrupt_id=interrupt.id
+            )
+            conv = _replace_call(conv, pending)
+    if not opened:
+        return conv.with_(run_status=RunStatus.IDLE)
+    return conv.with_(interrupts=tuple(opened), answers={}, run_status=RunStatus.AWAITING_INPUT)
+
+
+def _awaits_client_tools(conv: ConversationState, pending_ids: list[str] | None) -> bool:
+    """REQ-004.1, A-18: client-tool calls handed off at END, or listed as pending."""
+    if any(c.is_client_tool and c.status is ToolCallStatus.RUNNING for c in conv.tool_calls):
+        return True
+    return any(call_id in conv._tool_index for call_id in pending_ids or ())
+
+
 def _run_finished(conv: ConversationState, event: RunFinishedEvent) -> ConversationState:
-    """REQ-004.1: the run completes; open streams are closed."""
+    """REQ-004.1-2, API §8.3: end the run according to its outcome."""
     if event.run_id not in conv.last_run_ids:
         return _stale(conv, event.run_id, EventType.RUN_FINISHED.value)
-    return _close_streams(conv, finished=True).with_(run_status=RunStatus.IDLE)
+    outcome = event.outcome
+    outcome_type = getattr(outcome, "type", "success")
+    if outcome_type == "cancelled":
+        return _close_streams(conv, finished=False).with_(run_status=RunStatus.CANCELLED)
+    conv = _close_streams(conv, finished=True)
+    if outcome_type == "interrupt":
+        return _pause(conv, list(getattr(outcome, "interrupts", None) or []))
+    if _awaits_client_tools(conv, getattr(outcome, "pending_tool_call_ids", None)):
+        return conv  # the client-tool round keeps the run running (REQ-018.2)
+    return conv.with_(run_status=RunStatus.IDLE)
 
 
 def _run_error(conv: ConversationState, event: RunErrorEvent) -> ConversationState:

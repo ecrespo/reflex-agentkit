@@ -236,7 +236,7 @@
 - **Done:** `uv run pytest -k "REQ_016 or REQ_010_4 or REQ_010_5 or REQ_011" -q` passes.
   INV-9 holds on `custom_ring` with `custom_events_limit=3`.
 
-### T-014 · Reducer: `RUN_FINISHED` outcomes · TF `[ ]`
+### T-014 · Reducer: `RUN_FINISHED` outcomes · TF `[x] 2026-10-31`
 - **What:**
   - success/absent → `idle`, unless client-tool calls await execution (`is_client_tool`
     calls in `running`, or `outcome.pending_tool_call_ids`), in which case `running` is

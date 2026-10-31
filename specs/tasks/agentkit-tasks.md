@@ -634,7 +634,9 @@
   green. A manual check, `ANTHROPIC_API_KEY=… uv run --package quickstart reflex run`,
   streams, shows `get_weather`, and opens the approval dialog for `book_hotel`.
 
-### T-041 · Release workflow and `0.1.0a1` on TestPyPI `[ ]`
+### T-041 · Release workflow and `0.1.0a1` on TestPyPI `[!]`
+> **Blocked (2026-10-31):** `release.yml`, the `0.1.0a1` bump and the CHANGELOG entry are done, and a local fresh-env install of the built wheel compiles the quickstart (4 s with a warm uv cache). Publishing waits on the maintainer prerequisites of Plan §2: the pending trusted publishers on PyPI and TestPyPI and the GitHub environments `testpypi` and `pypi` (none exist yet). Then push the tag `v0.1.0a1` and run the TestPyPI walkthrough.
+
 - **What:** `.github/workflows/release.yml`:
   - on tag `v*`: `uv build` → `uv publish --trusted-publishing always`;
   - `a`/`rc` tags go to the `testpypi` environment

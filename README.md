@@ -5,10 +5,11 @@ chat, tool-call cards and human-in-the-loop approval for LangGraph, PydanticAI a
 AG-UI-compatible agent. The production UI layer your agent was missing — no TypeScript,
 no Streamlit.
 
-> **Status: pre-alpha, under active development.** Nothing is published on PyPI yet. The
-> pure core, the agent clients and the Reflex state engine (`AgentState`) are implemented
-> and tested; the PydanticAI adapter is implemented; the components and the LangGraph adapter are not. The API below marked *planned*
-> does not exist yet.
+> **Status: pre-alpha, under active development.** Nothing is published on PyPI yet; the
+> first pre-release (`0.1.0a1`, on TestPyPI) is built and waiting for the release setup.
+> The pure core, the agent clients, the Reflex state engine (`AgentState`), the chat
+> components and the PydanticAI adapter are implemented and tested. The LangGraph adapter
+> is not.
 
 ## Quickstart
 
@@ -92,8 +93,9 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP2 — Clients | `AgentClient`/`AGUIAgent` protocols, SSE parser, `HttpAGUIClient`, `InProcessAGUIClient` | ✅ done |
 | WP3 — Reflex state engine | `AgentState` mixin, streaming driver, cancellation, client-tool rounds | ✅ done |
 | WP4 — PydanticAI adapter | `PydanticAIAgent`: a PydanticAI agent as an `AGUIAgent`, tool approvals, client tools | ✅ done |
-| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | 🚧 next |
-| WP6+ — LangGraph adapter, Dojo examples, docs | LangGraph adapter, ported demos, documentation site | ⏳ planned |
+| WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (TestPyPI publish pending the release setup) |
+| WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval` | 🚧 next |
+| WP7+ — Dojo examples, docs, release | Ported demos, documentation site, `0.1.0` | ⏳ planned |
 
 ## What works today: `reflex_agentkit.core`
 
@@ -283,6 +285,7 @@ The workflow is uv only (Python 3.11–3.13).
 | Tests with coverage | `uv run pytest` |
 | Coverage gate (≥ 85 % on `core` and `state`) | `uv run python scripts/check_gated_coverage.py` |
 | Core isolation check | `uv run python scripts/assert_core_isolated.py` |
+| Quickstart smoke (offline) | `uv run pytest tests/smoke` |
 
 Read [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`specs/constitution.md`](specs/constitution.md)
 before contributing. The rules: the specs come first, `core` and `state` are written

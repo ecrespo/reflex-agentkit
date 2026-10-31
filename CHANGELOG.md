@@ -52,8 +52,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `run_stream` arguments are forwarded. Importing an adapter without its extra raises
   `AdapterNotInstalledError` with the install command.
 - `scripts/record_fixture.py` records event fixtures from real adapter runs.
+- `reflex_agentkit.components`: `agent_chat` and its parts, built from Reflex built-ins
+  only. `message_list` renders Markdown with raw HTML off, reasoning and a streaming
+  indicator; `tool_call_card` shows a status badge and collapsible arguments and result;
+  `composer` sends on Enter; `run_status_bar` has a cancel button; `approval_dialog`
+  offers approve, edit-arguments and reject, or a form for generic interrupts with their
+  queue position; `shared_state_panel` shows the JSON and a stale marker. `ToolRenderer`
+  and `InterruptRenderer` replace the default card body or form. Every control has an
+  accessible label.
+- `agent_chat` is re-exported lazily from `reflex_agentkit`, and `reduce` from
+  `reflex_agentkit.core`, as in API §3.
+- `examples/quickstart/`: the 23-line quickstart, a uv workspace member, with an offline
+  CI smoke job (`reflex compile --dry` with PydanticAI's `TestModel`).
+- Release workflow: a `v*` tag builds and publishes through trusted publishing, with
+  pre-release tags going to TestPyPI and final tags to PyPI.
 - JSON Lines event fixtures and a replay runner that checks the state invariants after
   every step.
+
+### Changed
+
+- The package version is `0.1.0a1`, ready for the first TestPyPI pre-release.
 
 ### Fixed
 

@@ -474,7 +474,7 @@
   - `test_REQ_003_1_states_isolated_per_token` (two tokens, one run each) passes. *(It needs
     `send_message`, so it lives in the T-030 handler tests.)*
 
-### T-030 · `AgentState` handlers and hooks · TF `[ ]`
+### T-030 · `AgentState` handlers and hooks · TF `[x] 2026-10-31`
 - **What:** the handlers of API §4.3 with their preconditions and no-op rules:
   - `send_message`, `approve_tool` (`str` JSON accepted), `reject_tool`,
     `respond_to_interrupt`, `cancel_run`, `new_thread`, `set_shared_state`,

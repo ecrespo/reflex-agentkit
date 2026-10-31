@@ -28,12 +28,14 @@ from reflex_agentkit.core.commands import (
     apply_failure,
     begin_run,
     request_local_approvals,
+    revert_shared_state,
     start_client_tool_round,
 )
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import AgentHTTPError, AgentStreamError, ErrorCode
 from reflex_agentkit.core.models import (
     CustomEventRecord,
+    JsonObject,
     ReducerConfig,
     RunStatus,
     ToolCall,
@@ -109,6 +111,8 @@ class DriverSettings:
     client_tool_timeout_s: float = 30.0
     max_client_tool_rounds: int = 8
     queue_size: int = 1024
+    validate_shared_state: Callable[[JsonObject], bool] | None = None
+    """Checks every shared-state value the agent sends (``shared_state_model``, REQ-016.5)."""
 
 
 CustomHook = Callable[[list[CustomEventRecord]], Awaitable[None]]
@@ -419,7 +423,15 @@ class RunDriver:
         self._events += 1
         self._log.debug("event %s", event.type.value)
         running = conv.run_status is RunStatus.RUNNING
+        previous_state = conv.shared_state
         conv = reduce(conv, event)
+        validate = self._settings.validate_shared_state
+        if (
+            validate is not None
+            and conv.shared_state is not previous_state
+            and not validate(conv.shared_state)
+        ):
+            conv = revert_shared_state(conv, previous_state)
         if isinstance(event, CustomEvent) and running:
             custom.append(CustomEventRecord(name=event.name, value=event.value, run_id=conv.run_id))
         if conv.diagnostics:

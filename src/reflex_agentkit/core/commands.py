@@ -14,6 +14,7 @@ from dataclasses import replace
 
 from ag_ui.core import ResumeEntry
 
+from reflex_agentkit.core._patch import PatchError, apply_patch
 from reflex_agentkit.core.conversation import ConversationState
 from reflex_agentkit.core.errors import ErrorCode
 from reflex_agentkit.core.models import (
@@ -43,10 +44,14 @@ __all__ = [
     "apply_failure",
     "apply_interrupt_response",
     "apply_rejection",
+    "apply_shared_state_patch",
+    "apply_shared_state_write",
+    "begin_retry",
     "begin_run",
     "new_thread",
     "request_local_approvals",
     "resume_entries",
+    "revert_shared_state",
     "start_client_tool_round",
 ]
 
@@ -438,6 +443,134 @@ def begin_run(
         abandoned_interrupt_ids=(),
         client_tool_rounds=rounds,
     )
+
+
+def _json_object_copy(value: object) -> JsonObject | None:
+    """A deep copy of ``value`` if it is a finite JSON object within the payload cap."""
+    if not isinstance(value, dict):
+        return None
+    try:
+        text = json.dumps(value, ensure_ascii=False, allow_nan=False)
+    except (TypeError, ValueError, RecursionError):
+        return None
+    if len(text.encode()) > MAX_PAYLOAD_BYTES:
+        return None
+    copied: JsonObject = json.loads(text)
+    return copied
+
+
+def _shared_state_error(
+    conv: ConversationState, code: ErrorCode, message: str
+) -> ConversationState:
+    return conv.with_(error=message, error_code=code)
+
+
+def apply_shared_state_write(conv: ConversationState, value: object) -> ConversationState:
+    """Replace ``shared_state`` from app code (REQ-017.1-2, INV-10).
+
+    Rejected while running (``SHARED_STATE_LOCKED``: the agent owns the state) and when
+    the value is not a JSON object within :data:`MAX_PAYLOAD_BYTES`
+    (``SHARED_STATE_INVALID``). The stored value is a copy; ``shared_state_stale`` clears.
+    """
+    if conv.run_status is RunStatus.RUNNING:
+        return _shared_state_error(
+            conv, ErrorCode.SHARED_STATE_LOCKED, "The shared state cannot change during a run."
+        )
+    copied = _json_object_copy(value)
+    if copied is None:
+        return _shared_state_error(
+            conv,
+            ErrorCode.SHARED_STATE_INVALID,
+            f"The shared state must be a JSON object of at most {MAX_PAYLOAD_BYTES} bytes.",
+        )
+    return conv.with_(shared_state=copied, shared_state_stale=False)
+
+
+def apply_shared_state_patch(conv: ConversationState, ops: object) -> ConversationState:
+    """Apply RFC 6902 ``ops`` to ``shared_state`` atomically (REQ-017.1-2).
+
+    Rejected while running (``SHARED_STATE_LOCKED``). A malformed, oversized or failing
+    patch changes nothing and sets ``SHARED_STATE_PATCH_FAILED``.
+    """
+    if conv.run_status is RunStatus.RUNNING:
+        return _shared_state_error(
+            conv, ErrorCode.SHARED_STATE_LOCKED, "The shared state cannot change during a run."
+        )
+    failed = _shared_state_error(
+        conv, ErrorCode.SHARED_STATE_PATCH_FAILED, "The shared-state patch could not be applied."
+    )
+    wrapped = _json_object_copy({"ops": ops})
+    if wrapped is None or not isinstance(wrapped["ops"], list):
+        return failed
+    operations = wrapped["ops"]
+    if not all(isinstance(op, dict) for op in operations):
+        return failed
+    try:
+        result = apply_patch(conv.shared_state, operations)  # type: ignore[arg-type]
+    except PatchError:
+        return failed
+    if _json_object_copy(result) is None:
+        return failed
+    return conv.with_(shared_state=result, shared_state_stale=False)
+
+
+def revert_shared_state(conv: ConversationState, previous: JsonObject) -> ConversationState:
+    """Reject an agent update that fails ``shared_state_model`` (REQ-016.5).
+
+    It behaves like a failed delta (REQ-016.3): ``previous`` is kept, the state is marked
+    stale, ``error_code`` is ``SHARED_STATE_INVALID`` and a warning is recorded.
+    """
+    diagnostic = Diagnostic(
+        level="warning",
+        code=DiagnosticCode.INVALID_EVENT,
+        message="The shared state did not validate against shared_state_model.",
+    )
+    return conv.with_(
+        shared_state=previous,
+        shared_state_stale=True,
+        error_code=ErrorCode.SHARED_STATE_INVALID,
+        diagnostics=(*conv.diagnostics, diagnostic),
+    )
+
+
+def begin_retry(
+    conv: ConversationState,
+    *,
+    config: ReducerConfig,
+    new_id: Callable[[], str] = _uuid4,
+) -> ConversationState:
+    """Start the last user turn again (REQ-028.1, API §4.3).
+
+    Allowed only after ``error`` or ``cancelled``. Everything after the last ``user``
+    message is dropped (with its tool calls and reasoning), and a new turn starts with a
+    new ``run_id``; the round counter resets. Without a user message this is a no-op.
+    """
+    if conv.run_status not in (RunStatus.ERROR, RunStatus.CANCELLED):
+        return conv
+    last_user = next(
+        (
+            i
+            for i in range(len(conv.messages) - 1, -1, -1)
+            if conv.messages[i].role is MessageRole.USER
+        ),
+        None,
+    )
+    if last_user is None:
+        return conv
+    messages = conv.messages[: last_user + 1]
+    kept = {m.id for m in messages}
+    referenced = {call_id for m in messages for call_id in m.tool_call_ids}
+    calls = tuple(c for c in conv.tool_calls if c.id in referenced or c.parent_message_id in kept)
+    reasoning = tuple(r for r in conv.reasoning if r.assistant_message_id in kept)
+    truncated = conv.with_(
+        messages=messages,
+        tool_calls=calls,
+        reasoning=reasoning,
+        dirty_tool_args=frozenset(),
+        current_step="",
+    )
+    started = begin_run(truncated, config=config, new_id=new_id)
+    return started.with_(last_run_ids=(started.run_id,), client_tool_rounds=0)
 
 
 def new_thread(conv: ConversationState, *, new_id: Callable[[], str] = _uuid4) -> ConversationState:

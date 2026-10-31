@@ -17,6 +17,8 @@ import pydantic
 import reflex as rx
 from ag_ui.core import RunAgentInput
 
+from reflex_agentkit.core import commands
+from reflex_agentkit.core._log import get_logger
 from reflex_agentkit.core.clients.base import AgentClient, AgentSource, AGUIAgent
 from reflex_agentkit.core.clients.in_process import InProcessAGUIClient
 from reflex_agentkit.core.conversation import ConversationState
@@ -31,8 +33,9 @@ from reflex_agentkit.core.models import (
     ToolCallStatus,
 )
 from reflex_agentkit.core.tools import ClientTool
-from reflex_agentkit.state._driver import StateView
+from reflex_agentkit.state._driver import DriverSettings, RunDriver, StateView
 from reflex_agentkit.state._projection import project, refresh_dirty_args
+from reflex_agentkit.state._registry import REGISTRY
 
 __all__ = ["AgentState"]
 
@@ -47,6 +50,7 @@ _CONFIG_NAMES = (
     "max_client_tool_rounds",
 )
 _CAN_SEND = frozenset({RunStatus.IDLE, RunStatus.CANCELLED, RunStatus.ERROR})
+_logger = get_logger("state.agent_state")
 
 
 class AgentState(rx.State, mixin=True):
@@ -122,12 +126,12 @@ class AgentState(rx.State, mixin=True):
     # --- hooks (API §4.4) ------------------------------------------------------------------
     def create_client(self) -> AgentClient:
         """The client of one run. The default wraps ``agent``; override for per-session clients."""
-        agent = type(self).agent
+        agent = self.__class__.agent
         if isinstance(agent, AgentClient):
             return agent
         if isinstance(agent, AGUIAgent):
             return InProcessAGUIClient(agent)
-        raise ConfigurationError(f"{type(self).__name__}.agent is not set")
+        raise ConfigurationError(f"{self.__class__.__name__}.agent is not set")
 
     def prepare_run_input(self, run_input: RunAgentInput) -> RunAgentInput:
         """Adjust the input of each run (context, forwarded props, tools). Identity by default."""
@@ -139,7 +143,196 @@ class AgentState(rx.State, mixin=True):
     async def on_run_end(self, status: RunStatus) -> None:
         """Called once per run after the final flush. No-op by default."""
 
+    # --- event handlers (API §4.3) ---------------------------------------------------------
+    # Every handler validates its arguments and preconditions: the browser can call any
+    # of them at any time with any payload (TD §6.1). Disallowed calls are no-ops.
+
+    @rx.event
+    def send_message(self, text: str) -> Any:
+        """Append the user's message and start a run (REQ-001)."""
+        conv = self._conversation()
+        if not isinstance(text, str) or conv.run_status not in _CAN_SEND:
+            return None
+        text = text.strip()
+        if not text:
+            return None
+        limit = self.__class__.max_message_length
+        if len(text) > limit:
+            message = f"The message is longer than the limit of {limit} characters."
+            self._publish(conv.with_(error=message, error_code=ErrorCode.MESSAGE_TOO_LONG))
+            return None
+        return self._schedule(
+            commands.begin_run(conv, config=self.__class__._reducer_config(), user_text=text)
+        )
+
+    @rx.event
+    def approve_tool(self, call_id: str, edited_args: dict[str, Any] | str | None = None) -> Any:
+        """Approve a pending call, optionally with edited arguments (REQ-013.2-3)."""
+        if not isinstance(call_id, str) or not isinstance(edited_args, dict | str | None):
+            return None
+        return self._answered(commands.apply_approval(self._conversation(), call_id, edited_args))
+
+    @rx.event
+    def reject_tool(self, call_id: str, reason: str | None = None) -> Any:
+        """Reject a pending call (REQ-013.4, REQ-018.3)."""
+        if not isinstance(call_id, str) or not isinstance(reason, str | None):
+            return None
+        if reason is not None and len(reason.encode()) > commands.MAX_PAYLOAD_BYTES:
+            return None
+        return self._answered(commands.apply_rejection(self._conversation(), call_id, reason))
+
+    @rx.event
+    def respond_to_interrupt(self, payload: Any) -> Any:
+        """Answer the current generic interrupt (REQ-014.2-4)."""
+        return self._answered(commands.apply_interrupt_response(self._conversation(), payload))
+
+    @rx.event
+    def cancel_run(self) -> None:
+        """Stop the run, or leave the pause (REQ-007.1, REQ-015.2)."""
+        conv = self._conversation()
+        if conv.run_status is RunStatus.RUNNING:
+            self._request_cancel(conv.run_id)
+        elif conv.run_status is RunStatus.AWAITING_INPUT:
+            self._publish(commands.apply_cancel(conv))
+
+    @rx.event
+    def new_thread(self) -> None:
+        """Start a new conversation, cancelling a running run first (REQ-002.3-4)."""
+        conv = self._conversation()
+        if conv.run_status is RunStatus.RUNNING:
+            self._request_cancel(conv.run_id)
+        self._pending_start = ""
+        self._publish(commands.new_thread(conv))
+
+    @rx.event
+    def set_shared_state(self, value: dict[str, Any]) -> None:
+        """Replace the shared state between runs (REQ-017)."""
+        conv = self._conversation()
+        self._publish(self._validated(conv, commands.apply_shared_state_write(conv, value)))
+
+    @rx.event
+    def patch_shared_state(self, ops: list[dict[str, Any]]) -> None:
+        """Apply RFC 6902 operations to the shared state between runs (REQ-017)."""
+        conv = self._conversation()
+        self._publish(self._validated(conv, commands.apply_shared_state_patch(conv, ops)))
+
+    @rx.event
+    def retry_run(self) -> Any:
+        """Run the last user turn again after an error or a cancel (REQ-028)."""
+        conv = self._conversation()
+        retried = commands.begin_retry(conv, config=self.__class__._reducer_config())
+        if retried is conv:
+            return None
+        return self._schedule(retried)
+
+    @rx.event(background=True)
+    async def drive_run(self) -> None:
+        """Stream the scheduled run (TD Flow A.3). A no-op unless it claims the start (§6.1)."""
+        try:
+            async with self:
+                conv = self._claim()
+                if conv is None:
+                    return
+                token = self._client_token()
+            driver = RunDriver(
+                _ReflexStateAccess(self),
+                client_factory=self.create_client,
+                settings=self.__class__._driver_settings(),
+                prepare_input=self.prepare_run_input,
+                on_flush=self._dispatch_custom_events,
+                on_run_end=self.on_run_end,
+                registry=REGISTRY,
+                client_token=token,
+            )
+            await driver.run(conv)
+        except Exception as exc:  # nothing escapes drive_run (TD §5.3)
+            _logger.error("drive_run failed: %s", type(exc).__name__)
+            _logger.debug("drive_run traceback", exc_info=exc)
+
+    def typed_shared_state(self) -> pydantic.BaseModel:
+        """``shared_state`` as an instance of ``shared_state_model`` (REQ-016.6)."""
+        model = self.__class__.shared_state_model
+        if model is None:
+            raise ConfigurationError(f"{self.__class__.__name__}.shared_state_model is not set")
+        return model.model_validate(self.shared_state)
+
     # --- internals -------------------------------------------------------------------------
+    def _schedule(self, conv: ConversationState) -> Any:
+        """Store a started run and return the background event that streams it (Flow A.2)."""
+        if conv.run_status is not RunStatus.RUNNING:
+            self._publish(conv)
+            return None
+        self._cancel_requested = ""
+        self._pending_start = conv.run_id
+        self._publish(conv)
+        return self.__class__.drive_run
+
+    def _answered(self, conv: ConversationState) -> Any:
+        """Store an answer; start the resume run once every interrupt has one (Flow C.3)."""
+        if conv is self._conv:
+            return None
+        if commands.all_answered(conv):
+            return self._schedule(
+                commands.begin_run(conv, config=self.__class__._reducer_config(), resume=True)
+            )
+        self._publish(conv)
+        return None
+
+    def _request_cancel(self, run_id: str) -> None:
+        """Flow D.1: flag the run, and cancel its task if it lives in this worker."""
+        self._cancel_requested = run_id
+        REGISTRY.cancel(self._client_token(), run_id)
+
+    def _claim(self) -> ConversationState | None:
+        """Flow A.3: take the scheduled start, once. Must run under the state lock."""
+        conv = self._conversation()
+        if not self._pending_start or self._pending_start != conv.run_id:
+            return None
+        self._pending_start = ""
+        if conv.run_status is not RunStatus.RUNNING:
+            return None
+        if self._cancel_requested == conv.run_id:
+            self._publish(commands.apply_cancel(conv))
+            return None
+        return conv
+
+    def _validated(self, before: ConversationState, after: ConversationState) -> ConversationState:
+        """Reject an app write that fails ``shared_state_model`` (REQ-016.5)."""
+        if after.shared_state is before.shared_state or _valid_shared_state(
+            self.__class__, after.shared_state
+        ):
+            return after
+        return before.with_(
+            error="The shared state does not match shared_state_model.",
+            error_code=ErrorCode.SHARED_STATE_INVALID,
+        )
+
+    async def _dispatch_custom_events(self, records: list[CustomEventRecord]) -> None:
+        """Run ``on_custom_event`` for each record, under the lock (REQ-020)."""
+        for record in records:
+            try:
+                await self.on_custom_event(record.name, record.value)
+            except Exception as exc:
+                _logger.warning("on_custom_event raised %s for %s", type(exc).__name__, record.name)
+                _logger.debug("on_custom_event traceback", exc_info=exc)
+
+    @classmethod
+    def _driver_settings(cls) -> DriverSettings:
+        validate = None
+        if cls.shared_state_model is not None:
+
+            def validate(value: dict[str, Any]) -> bool:
+                return _valid_shared_state(cls, value)
+
+        return DriverSettings(
+            reducer_config=cls._reducer_config(),
+            flush_interval_ms=cls.flush_interval_ms,
+            client_tools=tuple(cls.client_tools),
+            client_tool_timeout_s=cls.client_tool_timeout_s,
+            max_client_tool_rounds=cls.max_client_tool_rounds,
+            validate_shared_state=validate,
+        )
+
     @classmethod
     def _reducer_config(cls) -> ReducerConfig:
         return ReducerConfig(
@@ -150,7 +343,7 @@ class AgentState(rx.State, mixin=True):
     def _conversation(self) -> ConversationState:
         """The stored conversation, created on first use."""
         if self._conv is None:
-            self._conv = ConversationState.initial(type(self)._reducer_config())
+            self._conv = ConversationState.initial(self.__class__._reducer_config())
         return self._conv
 
     def _publish(self, conv: ConversationState) -> None:
@@ -181,6 +374,17 @@ class AgentState(rx.State, mixin=True):
             client_token=self._client_token(),
             publish=self._publish,
         )
+
+
+def _valid_shared_state(cls: type[AgentState], value: dict[str, Any]) -> bool:
+    model = cls.shared_state_model
+    if model is None:
+        return True
+    try:
+        model.model_validate(value)
+    except pydantic.ValidationError:
+        return False
+    return True
 
 
 class _ReflexStateAccess:

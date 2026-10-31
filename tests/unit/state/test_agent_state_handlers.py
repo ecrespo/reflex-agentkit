@@ -448,7 +448,7 @@ async def test_REQ_018_2_client_tools_through_agent_state(reflex_harness: Reflex
     cls = _state_class("ToolsState", client, client_tools=(pick_day,))
     await reflex_harness.call("tok", cls, "send_message", text="pick")
     state = await reflex_harness.state("tok", cls)
-    assert [t.name for t in client.inputs[0].tools] == ["pick_day"]
+    assert [t.name for t in client.inputs[0].tools or []] == ["pick_day"]
     assert state.tool_calls[0].result == "day-2"
     assert state.run_status == RunStatus.IDLE
     assert len(client.inputs) == 2

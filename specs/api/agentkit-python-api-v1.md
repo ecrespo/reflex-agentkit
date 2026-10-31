@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **API version** | v1.2 (ships as package `0.1.0`) |
+| **API version** | v1.3 (ships as package `0.1.0`) |
 | **Date** | 2026-10-30 |
 | **Related PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.1 |
@@ -215,6 +215,10 @@ def retry_run(self) -> ...                                         # COULD  (REQ
 | `patch_shared_state(ops)` | `run_status != running` | Applies RFC 6902 `ops` atomically. | as above, plus `SHARED_STATE_PATCH_FAILED` | 017 |
 | `retry_run()` | `error` or `cancelled` | Truncates after the last `user` message and starts a run. **Backend tools may run again:** tools with external side effects should be idempotent or use `requires_approval=True`; approval-required tools ask again. | otherwise no-op | 028 |
 
+`drive_run()` is the background handler that streams a run. Reflex does not allow private
+event handlers, so it is public, but it takes no arguments and does nothing unless a
+handler above has just scheduled a run (TD §6.1). App code never calls it.
+
 **Concurrency invariant:** at most one run is in flight per state instance (per client
 session). Every handler is safe to call from the browser at any time. Calls that are not
 allowed in the current state are no-ops, so double-clicks and races between `cancel_run`
@@ -232,7 +236,15 @@ Each hook has a default implementation. A subclass overrides it with a normal me
 | `on_custom_event` | `async def on_custom_event(self, name: str, value: Any) -> None` | no-op | After the reducer applies a CUSTOM event, under the state lock | App reactions to CUSTOM events. Exceptions are logged and swallowed (REQ-020.2). |
 | `on_run_end` | `async def on_run_end(self, status: RunStatus) -> None` | no-op | Once per run, after the final flush | Analytics in the host app, notifications. *(COULD)* |
 
-Hooks run on the event loop and must not block (Constitution Art. 4). Hooks that run
+**Typed shared state** (REQ-016.6): `def typed_shared_state(self) -> pydantic.BaseModel`
+returns `shared_state_model.model_validate(self.shared_state)` for server-side code. It
+raises `ConfigurationError` when no `shared_state_model` is set, and
+`pydantic.ValidationError` if the stored value does not validate (which REQ-016.5 prevents
+for every write and every agent update).
+
+Hooks run on the event loop and must not block (Constitution Art. 4). Inside a hook,
+read class-level configuration through `self.__class__`, not `type(self)`: during a run
+Reflex binds the hooks to a `StateProxy`, whose `type()` is the proxy class. Hooks that run
 under the lock must return quickly; slow work belongs in a separate background event.
 
 ### 4.5 Run status state machine
@@ -791,3 +803,4 @@ def reduce(state: ConversationState, event: BaseEvent) -> ConversationState: ...
 | 1.0 | 2026-10-30 | Initial version |
 | 1.1 | 2026-10-30 | TD v1.0 amendments A-1…A-7 (unreleased, so edited in place): quickstart with `ClassVar` and no `DeferredToolRequests` (23 lines); `ClassVar` rule for overrides; `max_client_tool_rounds` + `CLIENT_TOOL_LOOP_LIMIT`; PydanticAI output-type injection; LangGraph native interrupt keys, native multi-resume and cancelled-approval semantics; `RUN_FINISHED` cancelled outcome; Q-1…Q-5 resolved. |
 | 1.2 | 2026-10-30 | Analyze fixes: lazy top-level re-exports (A-01); `AGENT_CONNECT_ERROR` → `AGENT_EXCEPTION` (A-06); `ChatMessage.is_error` (A-08); cancelled-outcome and client-tool transitions noted in §4.5 (A-02, A-09); `__version__` single source (A-11); `retry_run` side-effect note (A-12); A-17 accepted and noted in §4.6. |
+| 1.3 | 2026-10-31 | §4.3 documents the background handler `drive_run` (Reflex rejects private handlers; TD v1.6). §4.4 adds `typed_shared_state()`, the typed accessor that REQ-016.6 requires and no section defined, and notes that hooks read configuration through `self.__class__` (Reflex binds them to a `StateProxy` during a run). Found in T-030 (spec drift rule). |

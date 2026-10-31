@@ -492,7 +492,7 @@
     passes.
   - `test_TD_6_1_forged_drive_run_is_noop` passes.
 
-### T-031 · Cross-cutting state tests: secret leak, responsiveness, multi-worker cancel `[ ]`
+### T-031 · Cross-cutting state tests: secret leak, responsiveness, multi-worker cancel `[x] 2026-10-31`
 - **What:**
   1. **REQ-025.2:** a configured state with `HttpAGUIClient(headers={"Authorization": "Bearer SECRET-123"})`
      runs against the fake server; the client-visible state, serialized with Reflex's
@@ -805,7 +805,7 @@ MUST requirements: every one has ≥ 1 task and ≥ 1 test, cited by name prefix
 | 004 | MUST | T-010, T-014, T-022, T-026 | fixtures, integration/test_http_client, unit/state/test_driver_streaming |
 | 005 | MUST | T-008, T-010, T-018, T-035 | unit/core/test_fixtures, test_reducer_properties |
 | 006 | MUST | T-026 | unit/state/test_driver_streaming |
-| 007 | MUST (007.6 SHOULD → MUST at T-031) | T-015, T-022, T-023, T-027, T-030, T-031 | integration/test_http_client, unit/state/test_driver_cancel, integration/test_multiworker_cancel |
+| 007 | MUST (007.6 raised to MUST in PRD v1.3, T-031) | T-015, T-022, T-023, T-027, T-030, T-031 | integration/test_http_client, unit/state/test_driver_cancel, integration/test_multiworker_cancel |
 | 008 | MUST | T-011 | fixtures text_* |
 | 009 | MUST | T-012 | fixtures tool_call_* |
 | 010 | MUST | T-010, T-013 | fixtures |

@@ -414,7 +414,7 @@
 - **Done:** the registry tests pass (register → cancel returns True and cancels the
   task; a miss returns False).
 
-### T-026 · `RunDriver`: streaming, batching, ownership · TF `[ ]`
+### T-026 · `RunDriver`: streaming, batching, ownership · TF `[x] 2026-10-31`
 - **What:**
   - The driver loop per TD Flow A: pump task + bounded queue (DD-003), flush-on-deadline
     (DD-005; `flush_interval_ms=0` flushes every event), terminal flush.

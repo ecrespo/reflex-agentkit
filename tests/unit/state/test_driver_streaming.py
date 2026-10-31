@@ -32,13 +32,16 @@ from reflex_agentkit.state._driver import DriverSettings, RunDriver
 from reflex_agentkit.state._registry import RunRegistry
 
 CONFIG = ReducerConfig()
-SECRET_TEXT = "the user's private words"
+PRIVATE_TEXT = "the user's private words"
 
 
 def _conv() -> ConversationState:
     ids = iter(["thread-1", "run-1", "user-msg-1"])
     return begin_run(
-        ConversationState.initial(CONFIG), config=CONFIG, user_text=SECRET_TEXT, new_id=ids.__next__
+        ConversationState.initial(CONFIG),
+        config=CONFIG,
+        user_text=PRIVATE_TEXT,
+        new_id=ids.__next__,
     )
 
 
@@ -70,7 +73,7 @@ def _driver(
         settings=DriverSettings(flush_interval_ms=flush_interval_ms, reducer_config=CONFIG),
         on_flush=on_flush,
         on_run_end=on_run_end,
-        registry=registry or RunRegistry(),
+        registry=registry if registry is not None else RunRegistry(),
     )
 
 
@@ -88,7 +91,7 @@ async def test_REQ_001_2_streams_a_reply_into_the_state() -> None:
     assert access.conv.run_status is RunStatus.IDLE
     assert access.conv.messages[-1].content == "Hello"
     assert client.inputs[0].run_id == "run-1"
-    assert client.inputs[0].messages[0].content == SECRET_TEXT
+    assert client.inputs[0].messages[0].content == PRIVATE_TEXT
     assert client.closed == 1
     check_invariants(access.conv)
 
@@ -139,8 +142,7 @@ async def test_REQ_026_2_ownership_lost_stops_and_closes_upstream() -> None:
     client = ScriptedClient([started(), *text("m1", "a"), Sleep(0.05), *text("m2", "b"), Hang()])
     driver = _driver(access, client, flush_interval_ms=10)
     task = asyncio.create_task(driver.run(conv))
-    while not access.published:
-        await asyncio.sleep(0.005)
+    await asyncio.wait_for(access.first_publish.wait(), 1)
     replacement = ConversationState.initial(CONFIG).with_(thread_id="new-thread")
     access.conv = replacement
     await asyncio.wait_for(task, 1)
@@ -239,13 +241,13 @@ async def test_REQ_027_1_diagnostics_are_logged_with_run_context_and_cleared(
 async def test_REQ_027_2_no_content_above_debug(caplog: pytest.LogCaptureFixture) -> None:
     """REQ-027.2: message text never appears in records at INFO or above."""
     with caplog.at_level(logging.DEBUG, logger="reflex_agentkit"):
-        await _run([started(), *text("m1", SECRET_TEXT), finished()])
-        await _run([started(), Raise(ValueError(SECRET_TEXT))])
+        await _run([started(), *text("m1", PRIVATE_TEXT), finished()])
+        await _run([started(), Raise(ValueError(PRIVATE_TEXT))])
     loud = [r for r in caplog.records if r.levelno >= logging.INFO]
     assert loud, "the run summary is logged at INFO"
     for record in loud:
-        assert SECRET_TEXT not in record.getMessage()
-        assert SECRET_TEXT not in str(record.exc_info)
+        assert PRIVATE_TEXT not in record.getMessage()
+        assert PRIVATE_TEXT not in str(record.exc_info)
         assert record.thread_id == "thread-1"  # type: ignore[attr-defined]
 
 
@@ -260,3 +262,76 @@ async def test_REQ_007_run_is_registered_while_it_streams() -> None:
     assert len(registry) == 1
     await task
     assert len(registry) == 0
+
+
+async def test_REQ_001_2_prepare_input_hook_shapes_the_run_input() -> None:
+    """API §4.4: ``prepare_run_input`` runs before each run."""
+    from ag_ui.core import Context
+
+    conv = _conv()
+    access = FakeStateAccess(conv)
+    client = ScriptedClient([started(), finished()])
+    driver = RunDriver(
+        access,
+        client_factory=lambda: client,
+        settings=DriverSettings(reducer_config=CONFIG),
+        prepare_input=lambda ri: ri.model_copy(
+            update={"context": [Context(description="tz", value="UTC")]}
+        ),
+        registry=RunRegistry(),
+    )
+    await driver.run(conv)
+    assert client.inputs[0].context == [Context(description="tz", value="UTC")]
+
+
+async def test_REQ_020_2_hook_exceptions_are_logged_and_swallowed(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """REQ-020.2: a failing ``on_custom_event`` or ``on_run_end`` does not break the run."""
+
+    async def bad_flush(events: list[CustomEventRecord]) -> None:
+        raise RuntimeError("hook bug")
+
+    async def bad_end(status: RunStatus) -> None:
+        raise RuntimeError("hook bug")
+
+    conv = _conv()
+    access = FakeStateAccess(conv)
+    driver = RunDriver(
+        access,
+        client_factory=lambda: ScriptedClient([started(), custom("x", 1), finished()]),
+        settings=DriverSettings(reducer_config=CONFIG, flush_interval_ms=0),
+        on_flush=bad_flush,
+        on_run_end=bad_end,
+        registry=RunRegistry(),
+    )
+    with caplog.at_level(logging.WARNING, logger="reflex_agentkit"):
+        await driver.run(conv)
+    assert access.conv.run_status is RunStatus.IDLE
+    assert sum("RuntimeError" in r.getMessage() for r in caplog.records) == 2
+
+
+async def test_REQ_026_2_ownership_lost_while_the_upstream_is_silent() -> None:
+    """Flow D.3: the silent-upstream tick also checks ownership."""
+    conv = _conv()
+    access = FakeStateAccess(conv)
+    client = ScriptedClient([started(), Hang()])
+    task = asyncio.create_task(_driver(access, client, flush_interval_ms=10).run(conv))
+    await asyncio.sleep(0.02)
+    access.conv = ConversationState.initial(CONFIG)
+    replaced = access.conv
+    await asyncio.wait_for(task, 0.5)
+    assert client.cancelled
+    assert access.publishes == 1  # RUN_STARTED, before the replacement
+    assert access.conv is replaced
+
+
+async def test_REQ_026_2_ownership_lost_before_the_final_flush() -> None:
+    """A run whose state was replaced does not write its final state or call on_run_end."""
+    conv = _conv()
+    access = FakeStateAccess(conv)
+    access.conv = ConversationState.initial(CONFIG)
+    ended: list[RunStatus] = []
+    await _driver(access, ScriptedClient([started(), finished()]), ended=ended).run(conv)
+    assert access.publishes == 0
+    assert ended == []

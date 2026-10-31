@@ -31,6 +31,7 @@ class FakeStateAccess:
         self.published: list[ConversationState] = []
         self.publish_times: list[float] = []
         self.lock_sections = 0
+        self.first_publish = asyncio.Event()
         self._lock = asyncio.Lock()
 
     @property
@@ -41,6 +42,7 @@ class FakeStateAccess:
         self.conv = conv
         self.published.append(conv)
         self.publish_times.append(time.monotonic())
+        self.first_publish.set()
 
     @asynccontextmanager
     async def locked(self) -> AsyncIterator[StateView]:

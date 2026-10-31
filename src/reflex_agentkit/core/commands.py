@@ -30,6 +30,7 @@ from reflex_agentkit.core.models import (
     ToolCall,
     ToolCallStatus,
 )
+from reflex_agentkit.core.reducer import close_streams
 
 __all__ = [
     "CANCELLED_RESULT",
@@ -38,6 +39,7 @@ __all__ = [
     "apply_approval",
     "apply_cancel",
     "apply_client_tool_result",
+    "apply_failure",
     "apply_interrupt_response",
     "apply_rejection",
     "begin_run",
@@ -288,6 +290,20 @@ def apply_client_tool_result(
         id=new_id(), role=MessageRole.TOOL, content=result, tool_call_id=call_id, is_error=is_error
     )
     return conv.with_(tool_calls=_with_call(conv, finished), messages=(*conv.messages, tool_msg))
+
+
+def apply_failure(conv: ConversationState, code: ErrorCode, message: str) -> ConversationState:
+    """End a running run in ``error`` after a transport or agent failure (TD Flow E).
+
+    The content streamed so far is kept: open messages stop streaming and calls whose
+    arguments were still streaming fail as incomplete, exactly as for ``RUN_ERROR``
+    (REQ-004.3-4). Outside a running run this is a no-op.
+    """
+    if conv.run_status is not RunStatus.RUNNING:
+        return conv
+    return close_streams(conv, finished=False).with_(
+        run_status=RunStatus.ERROR, error=message, error_code=code
+    )
 
 
 def _resume_answers(conv: ConversationState) -> tuple[InterruptAnswer, ...]:

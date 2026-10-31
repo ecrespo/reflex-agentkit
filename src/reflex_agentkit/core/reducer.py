@@ -66,7 +66,14 @@ from reflex_agentkit.core.models import (
     ToolCallStatus,
 )
 
-__all__ = ["HANDLED_EVENT_TYPES", "INVALID_TOOL_ARGUMENTS", "parse_event", "reduce"]
+__all__ = [
+    "HANDLED_EVENT_TYPES",
+    "INCOMPLETE_TOOL_CALL",
+    "INVALID_TOOL_ARGUMENTS",
+    "close_streams",
+    "parse_event",
+    "reduce",
+]
 
 Handler = Callable[[ConversationState, Any], ConversationState]
 
@@ -107,7 +114,7 @@ def _diag(
     return conv.with_(diagnostics=(*conv.diagnostics, diagnostic))
 
 
-def _close_streams(conv: ConversationState, *, finished: bool) -> ConversationState:
+def close_streams(conv: ConversationState, *, finished: bool) -> ConversationState:
     """End every open stream when the run ends (REQ-008.6, REQ-009.5, INV-5).
 
     On ``RUN_FINISHED`` a call still streaming gets its implicit END (chunk-fed calls
@@ -268,8 +275,8 @@ def _run_finished(conv: ConversationState, event: RunFinishedEvent) -> Conversat
     outcome = event.outcome
     outcome_type = getattr(outcome, "type", "success")
     if outcome_type == "cancelled":
-        return _close_streams(conv, finished=False).with_(run_status=RunStatus.CANCELLED)
-    conv = _close_streams(conv, finished=True)
+        return close_streams(conv, finished=False).with_(run_status=RunStatus.CANCELLED)
+    conv = close_streams(conv, finished=True)
     if outcome_type == "interrupt":
         return _pause(conv, list(getattr(outcome, "interrupts", None) or []))
     if _awaits_client_tools(conv, getattr(outcome, "pending_tool_call_ids", None)):
@@ -279,7 +286,7 @@ def _run_finished(conv: ConversationState, event: RunFinishedEvent) -> Conversat
 
 def _run_error(conv: ConversationState, event: RunErrorEvent) -> ConversationState:
     """REQ-004.3: the run failed; the content streamed so far is kept."""
-    return _close_streams(conv, finished=False).with_(
+    return close_streams(conv, finished=False).with_(
         run_status=RunStatus.ERROR, error=event.message, error_code=ErrorCode.AGENT_RUN_ERROR
     )
 

@@ -94,8 +94,8 @@ Work follows the approved spec chain in [`specs/`](specs/) and the task list in
 | WP4 — PydanticAI adapter | `PydanticAIAgent`: a PydanticAI agent as an `AGUIAgent`, tool approvals, client tools | ✅ done |
 | WP5 — Components and quickstart | `agent_chat` and its parts, quickstart example, release workflow | ✅ done (PyPI publish pending the release setup) |
 | WP6 — LangGraph adapter | `LangGraphAGUIAgent`, `request_tool_approval`, legacy interrupts | ✅ done |
-| WP7 — Dojo examples | The five AG-UI Dojo demos for PydanticAI and LangGraph | 🚧 next |
-| WP8 — Hardening, docs, release | Documentation site, `0.1.0` on PyPI | ⏳ planned |
+| WP7 — Dojo examples | The five AG-UI Dojo demos for PydanticAI and LangGraph | ✅ done |
+| WP8 — Hardening, docs, release | Documentation site, `0.1.0` on PyPI | 🚧 next |
 
 ## What works today: `reflex_agentkit.core`
 
@@ -330,6 +330,20 @@ def index() -> rx.Component:
   `{"__agui_cancelled__": True}` value for a generic interrupt.
 - `legacy_interrupts=True` supports integrations that only send the older `on_interrupt`
   event.
+
+## Examples
+
+| Example | What it is |
+|---|---|
+| [`examples/quickstart/`](examples/quickstart/) | The quickstart above: a chat with a PydanticAI agent in 23 lines |
+| [`examples/pydantic_ai_dojo/`](examples/pydantic_ai_dojo/) | The five AG-UI Dojo demos with PydanticAI |
+| [`examples/langgraph_dojo/`](examples/langgraph_dojo/) | The same five demos with LangGraph graphs |
+
+The Dojo demos are agentic chat, backend tool rendering, human in the loop (approve, edit
+or reject a tool call; answer a question), shared state and tool-based generative UI.
+They use Claude by default; `AGENTKIT_MODEL=ollama:<model>` switches to a local Ollama
+model, and `AGENTKIT_MODEL=test` to an offline model (see
+[`examples/_shared`](examples/_shared/README.md)).
 
 ## Development
 

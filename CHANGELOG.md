@@ -64,6 +64,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   `reflex_agentkit.core`, as in API §3.
 - `examples/quickstart/`: the 23-line quickstart, a uv workspace member, with an offline
   CI smoke job (`reflex compile --dry` with PydanticAI's `TestModel`).
+- `examples/_shared/` (`examples-shared`): one model selection for every example —
+  Claude by default, `AGENTKIT_MODEL=ollama:<model>` for a local Ollama model, and
+  `AGENTKIT_MODEL=test` for an offline model — for PydanticAI and for LangChain chat
+  models.
+- `examples/pydantic_ai_dojo/` and `examples/langgraph_dojo/`: the five AG-UI Dojo demos
+  (agentic chat, backend tool rendering, human in the loop, shared state, tool-based
+  generative UI) as multi-page Reflex apps, with offline smoke tests and CI compile steps.
 - Automatic releases: merging a new publishable `__version__` into `main` runs the tests,
   publishes to PyPI through trusted publishing and creates the `v<version>` tag and GitHub
   Release (`scripts/release_version.py` decides). Pre-releases go to PyPI too.

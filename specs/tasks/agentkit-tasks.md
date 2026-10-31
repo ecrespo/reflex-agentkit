@@ -115,7 +115,7 @@
 
 ## WP1 — Pure core (test-first)
 
-### T-006 · Errors, enums, JSON aliases, value types · TF `[ ]`
+### T-006 · Errors, enums, JSON aliases, value types · TF `[x] 2026-10-31`
 - **What:** `core/errors.py` (API §9.1 hierarchy; `ErrorCode` StrEnum, DM §6) and
   `core/models.py`:
   - `MessageRole`, `RunStatus`, `ToolCallStatus`, `DiagnosticCode`;
@@ -136,7 +136,7 @@
     an instance of `ImportError`.
   - `uv run mypy` is clean.
 
-### T-007 · `ConversationState` aggregate · TF `[ ]`
+### T-007 · `ConversationState` aggregate · TF `[x] 2026-10-31`
 - **What:**
   - `core/conversation.py`: `ConversationState` (DM §3.10) with the `with_(**changes)`
     helper that rebuilds the derived `_tool_index`/`_message_index` (excluded from
@@ -150,7 +150,7 @@
   passes. `check_invariants` flags hand-built violations of each invariant (one negative
   test per INV).
 
-### T-008 · Fixture loader and runner `[ ]`
+### T-008 · Fixture loader and runner `[x] 2026-10-31`
 - **What:** `tests/helpers/fixtures.py`, which:
   - parses the DM §10 JSONL format (header, placeholders `$thread`/`$run`/`$run2`,
     `$command` lines, AG-UI events validated with the `ag_ui.core` TypeAdapter for
@@ -169,7 +169,7 @@
 - **Done:** the loader's own unit tests (placeholder substitution, partial match, command
   lines) pass. The parametrized test collects zero fixtures without error.
 
-### T-009 · JSON Patch façade · TF `[P]` `[ ]`
+### T-009 · JSON Patch façade · TF `[P]` `[x] 2026-10-31`
 - **What:** `core/_patch.py`: `apply_patch(doc: JsonObject, ops: list[JsonObject]) -> JsonObject`
   (deep copy, atomic, raises `PatchError` on any failure including a failed `test` op).
   This is the only `jsonpatch` importer, with one justified `type: ignore`.

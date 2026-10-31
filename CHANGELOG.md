@@ -10,3 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Project skeleton: uv/hatchling packaging, lint, type and test configuration, and CI.
+- `reflex_agentkit.core`: error hierarchy and `ErrorCode`, the `RunStatus` and
+  `ToolCallStatus` enums, the value types (`ChatMessage`, `ToolCall`, `PendingInterrupt`,
+  `CustomEventRecord`, `Diagnostic`) and the `ConversationState` aggregate, all with
+  version-tolerant pickling.

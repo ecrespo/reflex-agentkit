@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any
 
 from ag_ui.core import (
@@ -22,6 +23,7 @@ from ag_ui.core import (
     StateSnapshotEvent,
     TextMessageStartEvent,
     ToolCallEndEvent,
+    ToolCallResultEvent,
     ToolCallStartEvent,
 )
 from helpers.invariants import check_invariants
@@ -478,3 +480,64 @@ def test_REQ_010_4_snapshot_lists_each_tool_call_once() -> None:
     )
     assert [c.id for c in conv.tool_calls] == ["c1"]
     assert conv.messages[0].tool_call_ids == ("c1",)
+
+
+def _kept_call_snapshot(tool: dict[str, Any] | None) -> MessagesSnapshotEvent:
+    messages: list[dict[str, Any]] = [
+        {
+            "id": "a1",
+            "role": "assistant",
+            "toolCalls": [
+                {"id": "c1", "type": "function", "function": {"name": "t", "arguments": "{}"}}
+            ],
+        }
+    ]
+    if tool is not None:
+        messages.append({"id": "t1", "role": "tool", "toolCallId": "c1", **tool})
+    return _snapshot(messages)
+
+
+def _running_call() -> ConversationState:
+    return _apply(
+        _started(),
+        ToolCallStartEvent(tool_call_id="c1", tool_call_name="t", parent_message_id="a1"),
+        ToolCallEndEvent(tool_call_id="c1"),
+    )
+
+
+def test_DM_7_1_snapshot_fills_the_result_of_a_kept_call() -> None:
+    """DM v1.10: LangGraph sends a tool node's result only in the snapshot."""
+    conv = reduce(_running_call(), _kept_call_snapshot({"content": "booked"}))
+    [call] = conv.tool_calls
+    assert (call.status, call.result) == (ToolCallStatus.DONE, "booked")
+    check_invariants(conv)
+
+
+def test_DM_7_1_snapshot_tool_error_fails_a_kept_call() -> None:
+    conv = reduce(_running_call(), _kept_call_snapshot({"content": "boom", "error": "boom"}))
+    assert conv.tool_calls[0].status is ToolCallStatus.ERROR
+    assert conv.tool_calls[0].result == "boom"
+
+
+def test_DM_7_1_snapshot_keeps_a_rejected_status_and_records_the_result() -> None:
+    """DM v1.9-1.10: ``rejected`` is terminal."""
+    conv = _running_call()
+    conv = conv.with_(
+        tool_calls=(dataclasses.replace(conv.tool_calls[0], status=ToolCallStatus.REJECTED),)
+    )
+    conv = reduce(conv, _kept_call_snapshot({"content": "not booked"}))
+    assert (conv.tool_calls[0].status, conv.tool_calls[0].result) == (
+        ToolCallStatus.REJECTED,
+        "not booked",
+    )
+
+
+def test_DM_7_1_snapshot_does_not_overwrite_a_known_result() -> None:
+    conv = _apply(
+        _running_call(),
+        ToolCallResultEvent(message_id="t0", tool_call_id="c1", content="first"),
+    )
+    conv = reduce(conv, _kept_call_snapshot({"content": "second"}))
+    assert (conv.tool_calls[0].status, conv.tool_calls[0].result) == (ToolCallStatus.DONE, "first")
+    running = reduce(_running_call(), _kept_call_snapshot(None))
+    assert running.tool_calls[0].status is ToolCallStatus.RUNNING

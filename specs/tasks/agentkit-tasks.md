@@ -355,7 +355,7 @@
 - **Done:** a self-test streams 3 events and observes the disconnect when the client
   closes early.
 
-### T-022 · `HttpAGUIClient` · TF `[ ]`
+### T-022 · `HttpAGUIClient` · TF `[x] 2026-10-31`
 - **What:** `core/clients/http.py`, as in API §7.3/§8:
   - camelCase JSON body;
   - static or callable headers;

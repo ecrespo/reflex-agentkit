@@ -22,6 +22,7 @@ from ag_ui.core import (
 from helpers.fake_server import (
     FakeServer,
     Step,
+    abort,
     content_type,
     hang,
     raw,
@@ -35,7 +36,7 @@ from reflex_agentkit.core.clients.http import HttpAGUIClient
 from reflex_agentkit.core.errors import AgentHTTPError, AgentStreamError
 
 Factory = Callable[[Sequence[Step]], FakeServer]
-SECRET = "SECRET-123"
+SECRET = "SECRET-123"  # noqa: S105 - a fake value the tests search for
 
 RUN_INPUT = RunAgentInput(
     thread_id="t",
@@ -163,6 +164,17 @@ async def test_REQ_004_4_eof_before_a_terminal_event_raises(fake_agui_server: Fa
     assert info.value.reason == "eof"
 
 
+async def test_REQ_021_4_connection_dropped_mid_stream_raises(fake_agui_server: Factory) -> None:
+    """REQ-021.4: a dropped connection mid-run is a stream error."""
+    server = fake_agui_server([STARTED, abort()])
+    client = HttpAGUIClient(server.url)
+    with pytest.raises(AgentStreamError) as info:
+        await _collect(client)
+    await client.aclose()
+    assert info.value.reason == "eof"
+    assert "connection to the agent lost" in str(info.value)
+
+
 async def test_REQ_021_4_connection_refused_raises_connect_error() -> None:
     """REQ-021.4: an unreachable endpoint is a stream error, not a raw httpx error."""
     with socket.socket() as sock:
@@ -264,7 +276,7 @@ async def test_REQ_021_6_headers_never_leak(
             await client.aclose()
     assert len(errors) == 3
     assert SECRET not in caplog.text
-    for exc in errors:
-        assert SECRET not in str(exc)
-        assert SECRET not in repr(exc)
+    for err in errors:
+        assert SECRET not in str(err)
+        assert SECRET not in repr(err)
     assert repr(HttpAGUIClient("http://x", headers=headers)).count(SECRET) == 0

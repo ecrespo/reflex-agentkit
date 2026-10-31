@@ -10,7 +10,7 @@ client disconnect (REQ-007.2). Each request plays the same script::
 Steps: ``send(event)`` (an event object, a dict or a raw data string), ``raw(text)``
 (bytes written verbatim), ``sleep(s)``, ``status(code)``, ``content_type(ct)`` (both
 before the first body step), ``close()`` (end the response; implied at the script's end)
-and ``hang()`` (stay open until the client goes away).
+``hang()`` (stay open until the client goes away) and ``abort()`` (drop the connection).
 """
 
 from __future__ import annotations
@@ -77,6 +77,11 @@ def close() -> Step:
 
 def hang() -> Step:
     return Step("hang")
+
+
+def abort() -> Step:
+    """Drop the connection mid-response (the app raises; uvicorn closes the socket)."""
+    return Step("abort")
 
 
 @dataclasses.dataclass(frozen=True)
@@ -173,6 +178,9 @@ class FakeServer:
                 return
             elif step.kind == "close":
                 break
+            elif step.kind == "abort":
+                await start()
+                raise ConnectionAbortedError("scripted abort")
         await start()
         state["completed"] = True
         await send_({"type": "http.response.body", "body": b"", "more_body": False})

@@ -335,3 +335,23 @@ async def test_REQ_026_2_ownership_lost_before_the_final_flush() -> None:
     await _driver(access, ScriptedClient([started(), finished()]), ended=ended).run(conv)
     assert access.publishes == 0
     assert ended == []
+
+
+async def test_REQ_027_2_diagnostic_messages_stay_at_debug(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """REQ-027.2: a failed patch's message quotes shared-state values; only DEBUG shows it."""
+    from ag_ui.core import StateDeltaEvent, StateSnapshotEvent
+
+    delta = StateDeltaEvent.model_validate(
+        {"delta": [{"op": "test", "path": "/a", "value": PRIVATE_TEXT}]}
+    )
+    with caplog.at_level(logging.DEBUG, logger="reflex_agentkit"):
+        access, _ = await _run(
+            [started(), StateSnapshotEvent(snapshot={"a": 1}), delta, finished()]
+        )
+    assert access.conv.shared_state_stale
+    loud = [r for r in caplog.records if r.levelno >= logging.INFO]
+    assert any("PATCH_FAILED" in r.getMessage() for r in loud)
+    assert not any(PRIVATE_TEXT in r.getMessage() for r in loud)
+    assert any(PRIVATE_TEXT in r.getMessage() for r in caplog.records if r.levelno == logging.DEBUG)

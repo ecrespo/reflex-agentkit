@@ -13,7 +13,6 @@ import asyncio
 import contextlib
 import dataclasses
 import enum
-import logging
 import time
 from collections.abc import Awaitable, Callable, Sequence
 from contextlib import AbstractAsyncContextManager
@@ -284,8 +283,15 @@ class RunDriver:
             custom.append(CustomEventRecord(name=event.name, value=event.value, run_id=conv.run_id))
         if conv.diagnostics:
             for diagnostic in conv.diagnostics:
-                level = logging.DEBUG if diagnostic.level == "debug" else logging.WARNING
-                self._log.log(level, "%s (%s)", diagnostic.message, diagnostic.code.value)
+                # A message may quote content (a failed patch quotes shared-state values),
+                # so above DEBUG only the code and the event type are logged (REQ-027.2).
+                if diagnostic.level != "debug":
+                    self._log.warning(
+                        "reducer diagnostic %s on %s",
+                        diagnostic.code.value,
+                        diagnostic.event_type or "an event",
+                    )
+                self._log.debug("%s (%s)", diagnostic.message, diagnostic.code.value)
             conv = conv.with_(diagnostics=())
         return conv
 

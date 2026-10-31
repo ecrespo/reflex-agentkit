@@ -5,9 +5,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Project state
 
 reflex-agentkit (PyPI `reflex-agentkit`, import `reflex_agentkit`, MIT) is the production UI
-layer for Python AI agents, built on Reflex, speaking the AG-UI protocol. The repo is in the
-**spec phase**: no source code, `pyproject.toml` or tests exist yet. Do not write
-implementation code until the spec chain below is approved and Analyze has run.
+layer for Python AI agents, built on Reflex, speaking the AG-UI protocol. The spec chain is
+approved and Analyze has run; implementation proceeds task by task from
+`specs/tasks/agentkit-tasks.md` (progress is tracked there).
 
 **Read `specs/constitution.md` first.** It holds the non-negotiable rules (9 articles), the
 stack constraints and the canonical glossary (run, thread, tool call, approval, interrupt,
@@ -63,6 +63,28 @@ Design — never from memory.
   re-exports `AgentState`/components lazily (PEP 562 `__getattr__`).
 - Toolchain mandated by the constitution: `uv`, `ruff` (lint + format), `mypy --strict`
   on `core` and `state`, `pytest` + `pytest-asyncio`, Python 3.11–3.13, hatchling `src/` layout.
-  Add concrete commands here once `pyproject.toml` exists.
+  Commands are in *Standard commands* below.
 - Conventional Commits; CHANGELOG in Keep a Changelog format; everything in English.
 - No telemetry, and no network calls beyond the agent endpoints the user configures.
+
+## Standard commands (Plan §1.1; uv only)
+
+| Purpose | Command |
+|---|---|
+| Create or refresh the env (all extras plus dev group) | `uv sync --all-extras` |
+| Core-only env (no extras; Art. 1 check) | `uv sync --no-dev --group test` |
+| Lint / format check | `uv run ruff check .` · `uv run ruff format --check .` |
+| Type check (strict on `core` and `state`) | `uv run mypy` |
+| Tests (with coverage) | `uv run pytest` |
+| Per-package coverage gate (≥ 85 % on core and state) | `uv run python scripts/check_gated_coverage.py` |
+| Core isolation check | `uv run python scripts/assert_core_isolated.py` |
+| A single test | `uv run pytest tests/unit/core/test_reducer.py::test_name -q` |
+| Tests by REQ | `uv run pytest -k "REQ_013"` |
+| Slow / bench / redis markers | `uv run pytest -m "slow or redis"` · `uv run pytest -m bench` |
+| Run an example | `cd examples/quickstart && uv run reflex run` |
+| Add a dependency (maintainer only, with a delta or TD note) | `uv add <pkg>` · `uv add --optional pydantic-ai <pkg>` · `uv add --group dev <pkg>` |
+| Upgrade the lock | `uv lock --upgrade` (or `--upgrade-package <pkg>`) |
+| Build | `uv build` |
+| Docs | `uv run mkdocs serve` · `uv run mkdocs build --strict` |
+
+Ruff's formatter excludes `*.md`, so it never rewrites code samples in the approved specs.

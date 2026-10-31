@@ -20,6 +20,7 @@ events the handler returned, and re-raises any exception raised along the chain.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import AsyncIterator, Mapping
 from types import TracebackType
 from typing import TYPE_CHECKING, Any, TypeVar, cast
@@ -41,11 +42,13 @@ S = TypeVar("S", bound=rx.State)
 class _Namespace:
     """Stands in for the Socket.IO namespace: records the deltas sent to clients."""
 
-    def __init__(self, sink: list[tuple[str, Mapping[str, Any]]]) -> None:
+    def __init__(self, sink: list[tuple[str, Mapping[str, Any]]], times: list[float]) -> None:
         self._sink = sink
+        self._times = times
 
     async def emit_update(self, update: Any, token: str) -> None:
         if update.delta:
+            self._times.append(time.monotonic())
             self._sink.append((token, update.delta))
 
 
@@ -56,10 +59,13 @@ class ReflexHarness:
         # mypy sees StateManagerMemory as abstract (Reflex's overloads); it is concrete.
         self.manager: StateManager = state_manager or StateManagerMemory()  # type: ignore[abstract]
         self.deltas: list[tuple[str, Mapping[str, Any]]] = []
+        self.delta_times: list[float] = []  # ``time.monotonic()`` of each entry in ``deltas``
         self.errors: list[Exception] = []
         self._raised: set[int] = set()  # ids of exceptions ``call`` already re-raised
         self.processor = BaseStateEventProcessor(backend_exception_handler=self._on_error)
-        namespace = cast("EventNamespace", _Namespace(self.deltas))  # duck-typed stand-in
+        namespace = cast(
+            "EventNamespace", _Namespace(self.deltas, self.delta_times)
+        )  # duck-typed stand-in
         self.processor.configure(state_manager=self.manager, event_namespace=namespace)
 
     def _on_error(self, exc: Exception) -> None:

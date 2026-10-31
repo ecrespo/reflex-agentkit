@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) |
-| **Version** | 1.3 |
+| **Version** | 1.4 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -545,7 +545,7 @@ Not applicable (library).
 | SSE parser | pytest | Multi-line data, comments, CRLF, partial chunks | 021.2 |
 | `HttpAGUIClient` | pytest + local uvicorn Starlette fake server (DD-010) | Happy path, non-2xx, wrong content type, read timeout, EOF, **server observes disconnect on cancel**, headers never in errors or logs | 021, 007.2, 004.4 |
 | `RunDriver` | pytest-asyncio + `StateAccess` fake + scripted fake clients | Batching counts, flush on terminal, cancel (registry path and flag path), ownership loss, client-tool rounds, loop limit, handler timeout and exception | 006, 007, 018, 026 |
-| `AgentState` | Reflex state tested in process (instantiate the state class and invoke handlers through Reflex's testing utilities; the exact helper is chosen in the first state task) | Preconditions, projection, `ClassVar` validation, secret-leak test | 001–004, 013–017, 025 |
+| `AgentState` | Reflex state tested in process through Reflex's `BaseStateEventProcessor` over `StateManagerMemory` (OQ-1, `tests/helpers/reflex_harness.py`) | Preconditions, projection, `ClassVar` validation, secret-leak test | 001–004, 013–017, 025 |
 | Responsiveness | pytest-asyncio | A slow fake agent (offloaded 2 s of work) plus a second client's handler latency < 200 ms | 024.1 |
 | Multi-worker cancel (T-redis) | pytest + Redis service container in CI (one job) | Cancel handled by a "different worker": two `StateManagerRedis` instances | 007.6 |
 | Adapters | `TestModel` (PydanticAI); `FakeListChatModel` / scripted graph with `MemorySaver` (LangGraph) | Approval round-trip including edited args (the tool runs with the edited args), generic interrupt, multi-interrupt resume, cancelled interrupt, checkpointer error | 022, 034 |
@@ -615,7 +615,7 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 
 | ID | Question | Owner / when |
 |---|---|---|
-| OQ-1 | The exact Reflex helper for invoking handlers on a state in tests (no browser) | First `AgentState` task; if none fits, test through `StateAccess` and keep a thin AppHarness smoke |
+| OQ-1 | ~~The exact Reflex helper for invoking handlers on a state in tests (no browser)~~ **Resolved (T-024, 2026-10-31):** Reflex 0.10.1's own `BaseStateEventProcessor`, configured with a `StateManagerMemory` (or `StateManagerRedis`) and a duck-typed `event_namespace` that records deltas, runs foreground and background handlers for any token with no app, server or browser. `EventFuture.wait_all()` waits for a handler's whole chain; background-task exceptions reach only the processor's `backend_exception_handler`, so the harness re-raises them. Wrapped in `tests/helpers/reflex_harness.py`. The driver itself is still unit-tested through the `StateAccess` fake. | — |
 | OQ-2 | The exact command or API that compiles an example in CI without starting servers | First smoke task |
 | OQ-3 | `rx.markdown` raw-HTML default in 0.10.1 (DD-015) | First `message_list` task |
 | OQ-4 | Report the ag-ui-langgraph `fastapi` import bug upstream | Before the LangGraph docs PR |
@@ -643,4 +643,5 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.0 | 2026-10-30 | Ernesto Crespo (with Claude) | Initial version |
 | 1.1 | 2026-10-30 | Ernesto Crespo (with Claude) | Analyze fixes: lazy top-level re-exports (A-01); gates on core and state (A-04); `AGENT_EXCEPTION` mapping (A-06); frontend-tool termination fact added to the contract tests (A-18). |
 | 1.2 | 2026-10-31 | Ernesto Crespo (with Claude) | §8.4 item 4 refined while implementing T-004: on disconnect Reflex 0.10.1 cancels hydration and `on_load` chains only (spec drift rule). |
-| 1.3 | 2026-10-31 | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |
+| 1.3 | 2026-10-31 | Ernesto Crespo (with Claude) | Flow C.3: `resume_entries` reads `conv.resume`, captured by `begin_run` (DM v1.6); found in T-015. |
+| 1.4 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-1 resolved by the T-024 spike: handlers are tested through Reflex's `BaseStateEventProcessor` over an in-memory state manager; §8 updated. |

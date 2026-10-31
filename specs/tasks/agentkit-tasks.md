@@ -387,7 +387,7 @@
 
 ## WP3 — Reflex state engine
 
-### T-024 · Spike: Reflex in-process state testing (TD OQ-1) `[ ]`
+### T-024 · Spike: Reflex in-process state testing (TD OQ-1) `[x] 2026-10-31`
 - **What:** a timeboxed spike (≤ 0.5 d) to find how to instantiate an `rx.State` subclass
   and invoke foreground and background handlers in tests without a browser in reflex
   0.10.1. Candidates: Reflex testing helpers, `StateManagerMemory` + the app event

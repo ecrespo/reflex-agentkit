@@ -2,25 +2,27 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import reflex as rx
 from helpers.ui_state import UIState, render
 
 from reflex_agentkit.components import tool_call_card
 
 
-def _card(**kwargs: object) -> str:
+def _card(**kwargs: Any) -> str:
     return render(rx.foreach(UIState.tool_calls, lambda tc: tool_call_card(UIState, tc, **kwargs)))
 
 
 def test_REQ_023_4_header_badge_and_collapsible_sections() -> None:
     """REQ-023.4: name, status badge, collapsible args and result."""
     out = _card()
-    assert ".name" in out
-    assert ".status" in out
+    assert '["name"]' in out
+    assert '["status"]' in out
     assert "details" in out
     assert "Arguments" in out
     assert "Result" in out
-    assert ".args_text" in out
+    assert '["args_text"]' in out
 
 
 def test_REQ_019_2_default_body_without_renderers() -> None:
@@ -40,7 +42,7 @@ def test_REQ_019_1_renderer_replaces_the_body_and_keeps_the_header() -> None:
     )
     assert "CUSTOM-BODY" in out
     assert '"show_chart"' in out
-    assert ".status" in out
+    assert '["status"]' in out
     assert "Arguments" in out  # default body is still the fallback
 
 

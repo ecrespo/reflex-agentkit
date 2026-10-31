@@ -15,5 +15,10 @@ class UIState(AgentState, rx.State):
 
 
 def render(component: rx.Component) -> str:
-    """The component compiled to its JSX-like string."""
-    return str(component)
+    """The component compiled to its JSX-like string, plus its hooks.
+
+    Form ``on_submit`` handlers are hoisted into hooks (``handleSubmit_…``), so the hook
+    code is where their event names appear.
+    """
+    hooks = component._get_all_hooks()
+    return str(component) + "\n" + "\n".join(hooks)

@@ -96,6 +96,12 @@ check_untyped_defs = true
 module = ["reflex_agentkit.core", "reflex_agentkit.core.*", "reflex_agentkit.state", "reflex_agentkit.state.*"]
 strict = true
 
+# Reflex Vars resolve dataclass fields and component factories dynamically
+# (``Var[ToolCall].name``, ``rx.vstack(...)`` typed as Any), which mypy cannot follow.
+[[tool.mypy.overrides]]
+module = ["reflex_agentkit.components", "reflex_agentkit.components.*"]
+disable_error_code = ["attr-defined", "no-any-return"]
+
 [tool.pytest.ini_options]
 minversion = "8.3"
 testpaths = ["tests"]

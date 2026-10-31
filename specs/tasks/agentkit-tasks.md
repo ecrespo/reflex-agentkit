@@ -566,7 +566,7 @@
 
 ## WP5 — Components and quickstart
 
-### T-036 · `message_list` and `composer` `[ ]`
+### T-036 · `message_list` and `composer` `[x] 2026-10-31`
 - **What:** `components/messages.py`, `components/composer.py`, per API §10 / PRD
   REQ-023.2–3:
   - markdown without raw HTML (resolve TD OQ-3 and update TD §11);
@@ -579,7 +579,7 @@
 - **Done:** render-to-string tests pass. `test_DD_015_raw_html_not_rendered` shows that
   `<img src=x onerror=alert(1)>` is escaped. The aria-labels are present.
 
-### T-037 · `tool_call_card` with renderer dispatch, and `run_status_bar` `[P]` `[ ]`
+### T-037 · `tool_call_card` with renderer dispatch, and `run_status_bar` `[P]` `[x] 2026-10-31`
 - **What:** `components/tools.py` (header with name and status badge; collapsible args
   and result; `body` override; `rx.match` over the `tool_renderers` names; no
   `rx.match` when the mapping is empty) and `components/status.py` (status, step, cancel
@@ -589,7 +589,7 @@
 - **Depends on:** T-029
 - **Done:** `uv run pytest -k "REQ_019 or REQ_023_4 or REQ_023_6" -q` passes.
 
-### T-038 · `approval_dialog` and `shared_state_panel` `[P]` `[ ]`
+### T-038 · `approval_dialog` and `shared_state_panel` `[P]` `[x] 2026-10-31`
 - **What:** `components/approval.py`:
   - open while `pending_approvals` is non-empty or `pending_interrupt` is set; one item
     at a time, approvals first;

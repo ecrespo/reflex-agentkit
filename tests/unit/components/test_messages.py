@@ -12,7 +12,7 @@ def test_REQ_023_2_messages_render_in_order_with_a_streaming_indicator() -> None
     out = render(message_list(UIState))
     assert "messages_rx_state_" in out
     assert "Streaming" in out  # aria-label of the indicator
-    assert ".streaming" in out
+    assert '["streaming"]' in out
     assert '"user"' in out
     assert '"assistant"' in out
     assert '"tool"' in out

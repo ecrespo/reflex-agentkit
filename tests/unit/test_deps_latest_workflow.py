@@ -23,22 +23,38 @@ def test_DD_001_deps_latest_runs_weekly_and_on_demand() -> None:
 
 
 def test_DD_001_deps_latest_never_blocks_or_writes_the_repository() -> None:
-    """``continue-on-error``; read-only contents; the upgrade happens in a temporary copy."""
+    """Failures never fail the run; read-only contents; the upgrade is in a temporary copy."""
     workflow = _workflow()
     assert workflow["permissions"] == {"contents": "read"}
     job = workflow["jobs"]["latest"]
-    assert job["continue-on-error"] is True
-    assert job["permissions"] == {"contents": "read", "issues": "write"}
+    assert job["permissions"] == {"contents": "read"}
+    upgrade = next(step for step in job["steps"] if step.get("id") == "tests")
+    assert upgrade["continue-on-error"] is True
+    assert "mktemp -d" in upgrade["run"]
+    assert "uv lock --upgrade" in upgrade["run"]
     steps = "\n".join(str(step.get("run", "")) for step in job["steps"])
-    assert "mktemp -d" in steps
-    assert "uv lock --upgrade" in steps
     assert "git push" not in steps
     assert "git commit" not in steps
 
 
+def test_DD_001_unvetted_dependencies_never_run_with_a_token() -> None:
+    """The job that installs the newest versions has no token and no stored credentials."""
+    job = _workflow()["jobs"]["latest"]
+    assert "GH_TOKEN" not in str(job.get("env", {}))
+    assert all("GH_TOKEN" not in str(step.get("env", {})) for step in job["steps"])
+    checkout = next(
+        s for s in job["steps"] if str(s.get("uses", "")).startswith("actions/checkout")
+    )
+    assert checkout["with"]["persist-credentials"] is False
+
+
 def test_DD_001_deps_latest_reports_failures_in_an_issue() -> None:
-    """A failure opens an issue, or comments on the open one."""
-    last = _workflow()["jobs"]["latest"]["steps"][-1]
-    assert last["if"] == "failure()"
-    assert "gh issue create" in last["run"]
-    assert "gh issue comment" in last["run"]
+    """A separate job, which installs nothing, opens an issue or comments on the open one."""
+    report = _workflow()["jobs"]["report"]
+    assert report["needs"] == "latest"
+    assert report["if"] == "needs.latest.outputs.failed == 'true'"
+    assert report["permissions"] == {"issues": "write"}
+    script = "\n".join(str(step.get("run", "")) for step in report["steps"])
+    assert "gh issue create" in script
+    assert "gh issue comment" in script
+    assert "uv " not in script

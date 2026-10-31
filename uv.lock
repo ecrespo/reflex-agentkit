@@ -9,6 +9,7 @@ resolution-markers = [
 [manifest]
 members = [
     "examples-shared",
+    "langgraph-dojo",
     "pydantic-ai-dojo",
     "quickstart",
     "reflex-agentkit",
@@ -876,6 +877,17 @@ sdist = { url = "https://files.pythonhosted.org/packages/f0/c4/f4107f50dd07169d0
 wheels = [
     { url = "https://files.pythonhosted.org/packages/f3/40/4251d676b5c585d42175c901175d4bff56e22939625e18bcef781fc3e893/langgraph_checkpoint-4.3.1-py3-none-any.whl", hash = "sha256:215a826935c8db4d9676e79fd95943e5b3847d78604390898e1d98581cc594e5", size = 58093, upload-time = "2026-10-26T19:57:30.361Z" },
 ]
+
+[[package]]
+name = "langgraph-dojo"
+version = "0.1.0"
+source = { virtual = "examples/langgraph_dojo" }
+dependencies = [
+    { name = "examples-shared", extra = ["langgraph"] },
+]
+
+[package.metadata]
+requires-dist = [{ name = "examples-shared", extras = ["langgraph"], editable = "examples/_shared" }]
 
 [[package]]
 name = "langgraph-prebuilt"

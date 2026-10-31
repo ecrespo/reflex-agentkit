@@ -110,3 +110,6 @@ jobs:
       - name: Compile the PydanticAI Dojo with no network or keys
         working-directory: examples/pydantic_ai_dojo
         run: uv run --package pydantic-ai-dojo reflex compile --dry --no-rich
+      - name: Compile the LangGraph Dojo with no network or keys
+        working-directory: examples/langgraph_dojo
+        run: uv run --package langgraph-dojo reflex compile --dry --no-rich

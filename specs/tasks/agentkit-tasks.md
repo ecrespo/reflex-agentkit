@@ -733,7 +733,9 @@
   module. A manual run with Claude works, and with `AGENTKIT_MODEL=ollama:<model>` too
   (noted in the log).
 
-### T-048 · `examples/langgraph_dojo` (5 demos) `[ ]`
+### T-048 · `examples/langgraph_dojo` (5 demos) `[x] 2026-10-31`
+> **Note:** the smoke compile, the line-count test and an offline driven turn per demo (including a question interrupt followed by an approval with edited arguments) pass. The manual runs with Claude and with `AGENTKIT_MODEL=ollama:<model>` need a key and a local model; they are left to the maintainer.
+
 - **What:** the same five demos with LangGraph graphs (approval via
   `request_tool_approval`; generic interrupt via `interrupt()`).
 - **REQ:** REQ-030.1–2

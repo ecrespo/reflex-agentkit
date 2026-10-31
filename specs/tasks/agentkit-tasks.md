@@ -552,7 +552,7 @@
 - **Done:** `uv run pytest -k "REQ_022 or REQ_013_5" tests/integration -q` passes with no
   network.
 
-### T-035 · PydanticAI contract test and fixture recorder `[ ]`
+### T-035 · PydanticAI contract test and fixture recorder `[x] 2026-10-31`
 - **What:** contract test TD §8.4 item 2 (including the frontend-tool → `outcome=success` fact, Analyze A-18). `scripts/record_fixture.py --adapter pydantic-ai --scenario <name>`
   writes DM §10 JSONL from a `TestModel` run. Record and commit
   `pydantic_ai_approval_recorded.jsonl`.

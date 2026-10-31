@@ -478,3 +478,46 @@ def test_REQ_015_1_begin_run_while_paused_is_a_no_op(start: dict[str, Any]) -> N
     """REQ-015.1, INV-6: a run cannot start while an interrupt is unanswered."""
     conv = _paused(_approval(), calls=(_pending_call(),))
     assert begin_run(conv, config=CONFIG, **start) is conv
+
+
+def test_REQ_004_4_failure_keeps_partial_content_and_closes_streams() -> None:
+    """TD Flow E: a transport failure ends the run in ``error``; content is kept."""
+    from reflex_agentkit.core.commands import apply_failure
+    from reflex_agentkit.core.reducer import INCOMPLETE_TOOL_CALL
+
+    conv = begin_run(ConversationState.initial(CONFIG), user_text="go", config=CONFIG)
+    conv = conv.with_(
+        messages=(
+            *conv.messages,
+            ChatMessage(
+                id="m1",
+                role=MessageRole.ASSISTANT,
+                content="part",
+                streaming=True,
+                tool_call_ids=("c1",),
+            ),
+        ),
+        tool_calls=(ToolCall(id="c1", name="t", parent_message_id="m1"),),
+        dirty_tool_args=frozenset({"c1"}),
+    )
+    after = apply_failure(conv, ErrorCode.AGENT_STREAM_ERROR, "stream ended unexpectedly")
+    assert (after.run_status, after.error_code, after.error) == (
+        RunStatus.ERROR,
+        ErrorCode.AGENT_STREAM_ERROR,
+        "stream ended unexpectedly",
+    )
+    assert after.messages[-1].content == "part"
+    assert after.messages[-1].streaming is False
+    assert (after.tool_calls[0].status, after.tool_calls[0].result) == (
+        ToolCallStatus.ERROR,
+        INCOMPLETE_TOOL_CALL,
+    )
+    check_invariants(after)
+
+
+def test_REQ_004_4_failure_outside_a_running_run_is_a_no_op() -> None:
+    """A failure reported after the run already ended changes nothing."""
+    from reflex_agentkit.core.commands import apply_failure
+
+    idle = ConversationState.initial(CONFIG)
+    assert apply_failure(idle, ErrorCode.AGENT_STREAM_ERROR, "x") is idle

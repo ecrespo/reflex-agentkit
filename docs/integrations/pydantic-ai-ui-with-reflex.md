@@ -1,5 +1,8 @@
 # PydanticAI docs: "UI with Reflex" (draft)
 
+!!! success "Submitted"
+    Proposed in [pydantic/pydantic-ai#12141](https://github.com/pydantic/pydantic-ai/issues/12141) on 2026-10-31. The contributing guide asks to agree on the approach before a PR; open the PR once a maintainer agrees.
+
 !!! info "How to submit"
     - **Target repository:** [`pydantic/pydantic-ai`](https://github.com/pydantic/pydantic-ai)
     - **File:** `docs/ui/ag-ui.md`, a new subsection at the end of **Usage**, after

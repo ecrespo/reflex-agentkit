@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31) |
-| **Version** | 1.15 |
+| **Version** | 1.16 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -654,7 +654,7 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | OQ-1 | ~~The exact Reflex helper for invoking handlers on a state in tests (no browser)~~ **Resolved (T-024, 2026-10-31):** Reflex 0.10.1's own `BaseStateEventProcessor`, configured with a `StateManagerMemory` (or `StateManagerRedis`) and a duck-typed `event_namespace` that records deltas, runs foreground and background handlers for any token with no app, server or browser. `EventFuture.wait_all()` waits for a handler's whole chain; background-task exceptions reach only the processor's `backend_exception_handler`, so the harness re-raises them. Wrapped in `tests/helpers/reflex_harness.py`. The driver itself is still unit-tested through the `StateAccess` fake. | — |
 | OQ-2 | ~~The exact command or API that compiles an example in CI without starting servers~~ **Resolved (T-040):** `reflex compile --dry` (Reflex 0.10.1) compiles every page without writing `.web` or installing the frontend, and needs no Node. CI runs it from the example directory with `AGENTKIT_MODEL=test`; the example's `rxconfig.py` then swaps PydanticAI's `models.infer_model` for one that returns `TestModel`, so the verbatim quickstart builds with no API key. Apps declare `rx.plugins.RadixThemesPlugin()`, because implicit Radix enablement is deprecated in 0.10.1. | — |
 | OQ-3 | ~~`rx.markdown` raw-HTML default in 0.10.1 (DD-015)~~ **Resolved (T-036):** raw HTML is on by default; the library passes `use_raw=False` (DD-015). | — |
-| OQ-4 | Report the ag-ui-langgraph `fastapi` import bug upstream. **Draft written (T-045):** `docs/integrations/upstream-issues.md`; a contract test fails once upstream fixes it. Filing it is the maintainer's step. | Maintainer, before the LangGraph docs PR |
+| OQ-4 | Report the ag-ui-langgraph `fastapi` import bug upstream. **Resolved (2026-10-31):** already reported as [ag-ui-protocol/ag-ui#2013](https://github.com/ag-ui-protocol/ag-ui/issues/2013) (open). The contract test fails once upstream fixes it. | — |
 
 ---
 
@@ -692,3 +692,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.13 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: releases are automatic on a push to `main` with a new publishable version (maintainer decision). |
 | 1.14 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: two vectors found in the T-049 security review — browser-callable hooks (now excluded from Reflex's handler registration), `setvar`, and markdown-image exfiltration as a documented residual risk; the HTTP error body excerpt is logged at DEBUG only. |
 | 1.15 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: markdown-image exfiltration is an accepted residual risk; markdown images stay supported (maintainer decision). |
+| 1.16 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-4 resolved: the `fastapi` import bug is already reported upstream as ag-ui-protocol/ag-ui#2013. |

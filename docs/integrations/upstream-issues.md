@@ -9,7 +9,7 @@ first one.
 **Repository:** `ag-ui-protocol/ag-ui` (package `integrations/langgraph/python`,
 published as `ag-ui-langgraph`)
 **Version:** 0.0.47
-**Status:** draft, not filed
+**Status:** already reported upstream as [ag-ui-protocol/ag-ui#2013](https://github.com/ag-ui-protocol/ag-ui/issues/2013) (open; still reproduces on 0.0.47, checked 2026-10-31), so this draft was not filed
 
 ### Title
 

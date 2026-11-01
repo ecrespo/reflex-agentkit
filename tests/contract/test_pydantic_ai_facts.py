@@ -134,15 +134,15 @@ async def test_TD_8_4_2_frontend_tool_call_ends_with_success_not_interrupt() -> 
     assert pending in (None, [starts[0].tool_call_id])
 
 
-def test_TD_DD_013_interrupt_ids_map_back_to_tool_call_ids() -> None:
-    """DD-013: the private helper the adapter uses to find the edited call still exists."""
+def test_TD_DD_016_interrupt_ids_map_back_to_tool_call_ids() -> None:
+    """DD-016: the private helper the adapter uses to find the edited call still exists."""
     from pydantic_ai.ui.ag_ui._interrupt import interrupt_id_to_tool_call_id
 
     assert interrupt_id_to_tool_call_id("int-call_1") == "call_1"
 
 
-def test_TD_DD_013_run_stream_accepts_run_level_capabilities() -> None:
-    """DD-013: the notice rides on a per-run capability, merged with the agent's own."""
+def test_TD_DD_016_run_stream_accepts_run_level_capabilities() -> None:
+    """DD-016: the notice rides on a per-run capability, merged with the agent's own."""
     import inspect
 
     assert "capabilities" in inspect.signature(AGUIAdapter.run_stream).parameters

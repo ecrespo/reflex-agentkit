@@ -1,4 +1,4 @@
-"""The edited-arguments notice shared by both adapters (REQ-035, DD-013)."""
+"""The edited-arguments notice shared by both adapters (REQ-035, DD-016)."""
 
 from __future__ import annotations
 

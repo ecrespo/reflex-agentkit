@@ -1,4 +1,4 @@
-"""The edited-arguments notice both adapters give the model (REQ-035, DD-013).
+"""The edited-arguments notice both adapters give the model (REQ-035, DD-016).
 
 When the user approves a tool call with edited arguments, the model only sees a result
 that does not match what it asked for, and may "correct" the user by calling the tool

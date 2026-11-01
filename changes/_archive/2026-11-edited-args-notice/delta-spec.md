@@ -1,7 +1,7 @@
 # Delta: edited-arguments notice
 
 New criteria take new IDs (REQ-035). No criterion is removed. The open questions in the
-proposal were resolved in T-053 (see DD-013 below).
+proposal were resolved in T-053 (see DD-016 below).
 
 ## ADDED
 
@@ -65,7 +65,7 @@ Note: the user edited this tool call's arguments before approving it, so the too
 - The docs and the Dojo use
   `ToolMessage(decision.tool_result(run_tool(**decision.args)), ...)`.
 
-### specs/technical/agentkit-architecture.md → DD-013 (new decision)
+### specs/technical/agentkit-architecture.md → DD-016 (new decision)
 
 - **PydanticAI:** the adapter maps each resolved `ResumeEntry` with `editedArgs` to its tool
   call ID with `pydantic_ai.ui.ag_ui._interrupt.interrupt_id_to_tool_call_id`. A contract

@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31) |
-| **API version** | v1.6 (ships as package `0.1.0`) |
+| **API version** | v1.7 (v1.6 shipped as package `0.1.0`; v1.7 is unreleased) |
 | **Date** | 2026-10-30 |
 | **Related PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **Governed by** | [`specs/constitution.md`](../constitution.md) v1.1 |
@@ -499,6 +499,7 @@ class PydanticAIAgent:   # implements AGUIAgent
         *,
         deps: Any = None,
         deps_factory: Callable[[RunAgentInput], Any | Awaitable[Any]] | None = None,
+        notify_edited_args: bool = True,   # REQ-035.1, REQ-035.4
         **run_kwargs: Any,   # forwarded to AGUIAdapter.run_stream (e.g. model_settings, usage_limits)
     ) -> None: ...
 ```
@@ -516,6 +517,10 @@ class PydanticAIAgent:   # implements AGUIAgent
 - `client_tools` from `AgentState` arrive as `RunAgentInput.tools`. PydanticAI exposes
   them to the model as frontend tools, and their calls end the run with a pending
   frontend tool call (§6 flow).
+- When a resumed run approves a call with `editedArgs`, the edited call's result gets the
+  edited-arguments notice (PRD REQ-035.1), through a run-level capability added only for
+  that run (TD DD-016). `notify_edited_args=False` turns it off (REQ-035.4). A
+  `capabilities` entry in `run_kwargs` is kept; the notice capability is appended to it.
 
 ### 7.6 LangGraph adapter (`pip install reflex-agentkit[langgraph]`)
 
@@ -535,6 +540,9 @@ class ApprovalDecision:
     approved: bool
     args: dict[str, Any]          # original or edited args (edited take precedence)
     reason: str | None = None
+    edited: bool = False          # approved with args that differ from the proposed ones
+
+    def tool_result(self, result: Any) -> Any: ...   # REQ-035.2
 
 def request_tool_approval(
     tool_call_id: str, tool_name: str, args: dict[str, Any], *, message: str | None = None
@@ -813,3 +821,4 @@ def reduce(state: ConversationState, event: BaseEvent) -> ConversationState: ...
 | 1.4 | 2026-10-31 | §3 clarifies that `reflex_agentkit.core.__all__` leaves out `__version__` (the package version lives only in the top-level module). Found in T-039. |
 | 1.5 | 2026-10-31 | §7.6: one `LangGraphAGUIAgent` serves every session (per-run clone), and `shared_state` leaves out the graph's `messages` and `tools` keys. Found in T-042 (spec drift rule). |
 | 1.6 | 2026-10-31 | §4.4: the hooks and `typed_shared_state` are not browser-callable event handlers, including subclass overrides. Found in the T-049 security review. |
+| 1.7 | 2026-10-31 | Folded `changes/2026-11-edited-args-notice/`: §7.5 `notify_edited_args`; §7.6 `ApprovalDecision.edited` and `tool_result()` (PRD REQ-035). Additive. |

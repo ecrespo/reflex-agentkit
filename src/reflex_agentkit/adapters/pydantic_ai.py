@@ -131,7 +131,7 @@ def _edited_calls(run_input: RunAgentInput) -> dict[str, dict[str, Any]]:
 
 @dataclasses.dataclass
 class _EditNotice(AbstractCapability[Any]):
-    """Append the edited-arguments notice to the results of edited calls (DD-013)."""
+    """Append the edited-arguments notice to the results of edited calls (DD-016)."""
 
     edits: dict[str, dict[str, Any]]
 

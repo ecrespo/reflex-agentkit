@@ -295,7 +295,8 @@ app.add_page(index)
 
 Install the extra (`reflex-agentkit[pydantic-ai]`) and wrap the agent. Tools declared with
 `requires_approval=True` pause the run for `approve_tool` / `reject_tool` with no extra
-configuration; edited arguments reach the tool.
+configuration; edited arguments reach the tool, and the tool's result tells the model the
+user changed them (`notify_edited_args=False` turns that off).
 
 ```python
 from typing import ClassVar

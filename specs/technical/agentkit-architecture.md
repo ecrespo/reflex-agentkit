@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
-| **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31) |
+| **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31); REQ-035 changes in `0.2.0` (2026-10-31) |
 | **Version** | 1.17 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
@@ -452,7 +452,7 @@ allowed to fail and opens an issue when it does.
 
 ### DD-016 — Edited-arguments notice (PRD REQ-035)
 
-*Added by `changes/_archive/2026-11-edited-args-notice/` (unreleased).*
+*Added by `changes/_archive/2026-11-edited-args-notice/`, released in `0.2.0`.*
 
 - **Problem.** When the user approved a call with edited arguments, the model saw a
   result that did not match its request. In the manual run with Claude it reported the

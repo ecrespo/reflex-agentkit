@@ -5,7 +5,7 @@
 | Field | Value |
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
-| **Status** | `APPROVED` · `RELEASED` in `0.1.0` (2026-10-31) |
+| **Status** | `APPROVED` · `RELEASED` in `0.1.0` (2026-10-31); REQ-035 changes in `0.2.0` (2026-10-31) |
 | **Version** | 1.4 |
 | **Date** | 2026-10-30 |
 | **Reviewers** | Ernesto Crespo |
@@ -318,7 +318,7 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 3. WHEN the next run starts after a cancelled pause, THE SYSTEM SHALL include a `ResumeEntry(status="cancelled")` for each remembered interrupt ID, so the agent's protocol state stays consistent.
 
 #### REQ-035 — Tell the model about edited arguments · `MUST`
-*Added by `changes/_archive/2026-11-edited-args-notice/` (unreleased).*
+*Added by `changes/_archive/2026-11-edited-args-notice/`, released in `0.2.0`.*
 1. WHEN a tool call approved with `editedArgs` runs through the PydanticAI adapter, THE SYSTEM SHALL give the model a tool result made of the tool's own result followed by the edited-arguments notice.
 2. WHEN a LangGraph node calls `ApprovalDecision.tool_result(result)` for a decision approved with edited arguments, THE SYSTEM SHALL return the result followed by the edited-arguments notice; for any other decision it SHALL return `result` unchanged.
 3. WHEN a tool call is approved without edits, or is rejected, THE SYSTEM SHALL leave the tool result unchanged.

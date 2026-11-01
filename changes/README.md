@@ -8,4 +8,4 @@ the folder moves to `changes/_archive/`.
 
 | Change | Status |
 |---|---|
-| [`2026-11-edited-args-notice`](_archive/2026-11-edited-args-notice/proposal.md) | Implemented, folded into `specs/`, archived (unreleased) |
+| [`2026-11-edited-args-notice`](_archive/2026-11-edited-args-notice/proposal.md) | Released in `0.2.0`, folded into `specs/`, archived |

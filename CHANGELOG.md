@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-31
+
 ### Added
 
 - The documentation site is published to GitHub Pages from `main`
@@ -137,5 +139,6 @@ The first release. `0.1.0rc1` was published on 2026-10-31 as its release candida
 - The latest-dependencies workflow runs the newest, unvetted versions without a token or
   stored git credentials; a separate job reports failures.
 
-[Unreleased]: https://github.com/ecrespo/reflex-agentkit/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ecrespo/reflex-agentkit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ecrespo/reflex-agentkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ecrespo/reflex-agentkit/releases/tag/v0.1.0

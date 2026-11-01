@@ -63,6 +63,7 @@ nav:
   - Security model: security.md
   - Troubleshooting: troubleshooting.md
   - Integrations:
+      - Upstream status: integrations/upstream-status.md
       - AG-UI integrations table: integrations/ag-ui-integration-entry.md
       - PydanticAI docs page: integrations/pydantic-ai-ui-with-reflex.md
       - LangGraph docs page: integrations/langgraph-frontend-with-reflex.md

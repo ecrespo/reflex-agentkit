@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- The documentation site is published to GitHub Pages from `main`
+  (<https://blog.seraph.to/reflex-agentkit/>).
+- Proposed change `changes/2026-11-edited-args-notice/`: tell the model when the user
+  edited a tool call's arguments (REQ-035, pending implementation).
+
+### Changed
+
+- Markdown-image exfiltration is an accepted residual risk; markdown images stay
+  supported (TD v1.15).
+
 ## [0.1.0] - 2026-10-31
 
 The first release. `0.1.0rc1` was published on 2026-10-31 as its release candidate.

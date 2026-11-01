@@ -8,7 +8,7 @@ no Streamlit.
 > **Status: `0.1.0`, the first release.** Everything in v0.1 is implemented and tested: the pure core,
 > the agent clients, the Reflex state engine (`AgentState`), the chat components, both
 > adapters (PydanticAI and LangGraph) and the AG-UI Dojo examples.
-> `pip install "reflex-agentkit[pydantic-ai]"` or `uv add "reflex-agentkit[pydantic-ai]"`. Documentation: [`docs/`](docs/) (`uv run mkdocs serve`).
+> `pip install "reflex-agentkit[pydantic-ai]"` or `uv add "reflex-agentkit[pydantic-ai]"`. Documentation: https://blog.seraph.to/reflex-agentkit/
 
 ## Why
 
@@ -122,7 +122,8 @@ an accessible label.
 
 The MkDocs site in [`docs/`](docs/) covers getting started (uv and pip), the concepts,
 guides (your own UI, human in the loop, sidecar deployment, local models with Ollama), the
-API reference, the security model and troubleshooting. Preview it with
+API reference, the security model and troubleshooting. It is published at
+<https://blog.seraph.to/reflex-agentkit/> from `main`; preview it locally with
 `uv run mkdocs serve`.
 
 ## Progress

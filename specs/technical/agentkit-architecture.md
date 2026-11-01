@@ -5,8 +5,8 @@
 | Field | Value |
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
-| **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31) |
-| **Version** | 1.16 |
+| **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31); REQ-035 changes in `0.2.0` (2026-10-31) |
+| **Version** | 1.17 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -450,6 +450,33 @@ allowed to fail and opens an issue when it does.
   renders passes `use_raw=False`, and a test asserts that the rendered component carries
   no `rehypeRaw` plugin, so `<img src=x onerror=…>` in model output stays text.
 
+### DD-016 — Edited-arguments notice (PRD REQ-035)
+
+*Added by `changes/_archive/2026-11-edited-args-notice/`, released in `0.2.0`.*
+
+- **Problem.** When the user approved a call with edited arguments, the model saw a
+  result that did not match its request. In the manual run with Claude it reported the
+  result as wrong (LangGraph) or called the tool again with its original arguments
+  (PydanticAI).
+- **PydanticAI.** `PydanticAIAgent.run` reads `RunAgentInput.resume`. Each resolved entry
+  with `approved: true` and an `editedArgs` object maps to its tool call through
+  `pydantic_ai.ui.ag_ui._interrupt.interrupt_id_to_tool_call_id`, a private helper that a
+  contract test pins. When there is at least one edit, the adapter passes a run-level
+  capability (`AGUIAdapter.run_stream(capabilities=[...])`, merged with the agent's
+  own). Its `after_tool_execute` hook appends the notice to those calls' results.
+  Verified on `pydantic-ai-slim` 2.64.
+- **LangGraph.** The node builds the `ToolMessage`, so the notice is opt-in through
+  `ApprovalDecision.tool_result(result)`. `edited` is true only when `editedArgs` differs
+  from the proposed arguments.
+- **Unchanged edits.** `apply_approval` in `core` drops an "edit" equal to the current
+  arguments (REQ-035.5), so no adapter sees a no-op edit.
+- **Text.** It is one constant, `reflex_agentkit.adapters._edits.EDITED_ARGS_NOTICE`, and
+  tests pin it. It names only the effective arguments. On resume, the model's call in the
+  history already carries the edited arguments (REQ-013.3), so the original ones aren't
+  available to the server. Its last sentence says how to treat the edit: a notice that
+  only stated the change still led Claude to call the result "not what you asked for".
+  It is logged only at DEBUG, because it holds user content.
+
 ## 5. Patterns and Conventions
 
 ### 5.1 Code structure
@@ -693,3 +720,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.14 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: two vectors found in the T-049 security review — browser-callable hooks (now excluded from Reflex's handler registration), `setvar`, and markdown-image exfiltration as a documented residual risk; the HTTP error body excerpt is logged at DEBUG only. |
 | 1.15 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: markdown-image exfiltration is an accepted residual risk; markdown images stay supported (maintainer decision). |
 | 1.16 | 2026-10-31 | Ernesto Crespo (with Claude) | §11 OQ-4 resolved: the `fastapi` import bug is already reported upstream as ag-ui-protocol/ag-ui#2013. |
+| 1.17 | 2026-10-31 | Ernesto Crespo (with Claude) | DD-016: the edited-arguments notice (folded from `changes/2026-11-edited-args-notice/`). |

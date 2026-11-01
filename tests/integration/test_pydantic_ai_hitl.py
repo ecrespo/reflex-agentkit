@@ -6,6 +6,7 @@
 
 from __future__ import annotations
 
+import logging
 from typing import ClassVar
 
 import pytest
@@ -61,12 +62,19 @@ async def test_REQ_022_2_approve_runs_the_tool(reflex_harness: ReflexHarness) ->
     assert state.run_status == RunStatus.IDLE
     assert booked == ["a"]  # TestModel's generated argument
     call = state.tool_calls[0]
-    assert (call.status, call.result) == (ToolCallStatus.DONE, "booked a")
+    assert (call.status, call.result) == (ToolCallStatus.DONE, "booked a")  # REQ-035.3
     assert state.messages[-1].role == "assistant"
 
 
+NOTICE = (
+    "booked Porto\n\nNote: the user edited this tool call's arguments before approving it, "
+    'so the tool ran with: {"city": "Porto"}. These are the arguments the user wants: do not '
+    "call the tool again to restore the earlier ones, and do not report the change as an error."
+)
+
+
 async def test_REQ_022_3_approve_with_edited_args(reflex_harness: ReflexHarness) -> None:
-    """REQ-022.3: the tool receives the edited arguments."""
+    """REQ-022.3, REQ-035.1: the tool gets the edits and the model is told about them."""
     state = await _pause(reflex_harness, "edit")
     call_id = state.pending_approvals[0].id
     await reflex_harness.call(
@@ -74,8 +82,43 @@ async def test_REQ_022_3_approve_with_edited_args(reflex_harness: ReflexHarness)
     )
     state = await reflex_harness.state("edit", HotelState)
     assert booked == ["Porto"]
-    assert state.tool_calls[0].result == "booked Porto"
+    assert state.tool_calls[0].result == NOTICE
     assert state.run_status == RunStatus.IDLE
+
+
+class QuietHotelState(AgentState, rx.State):
+    agent: ClassVar = PydanticAIAgent(_hotel_agent(), notify_edited_args=False)
+
+
+async def test_REQ_035_4_notice_can_be_turned_off(reflex_harness: ReflexHarness) -> None:
+    """REQ-035.4: ``notify_edited_args=False`` leaves the tool result as the tool returned it."""
+    await reflex_harness.call("quiet", QuietHotelState, "send_message", text="book a hotel")
+    state = await reflex_harness.state("quiet", QuietHotelState)
+    call_id = state.pending_approvals[0].id
+    await reflex_harness.call(
+        "quiet", QuietHotelState, "approve_tool", call_id=call_id, edited_args={"city": "Porto"}
+    )
+    state = await reflex_harness.state("quiet", QuietHotelState)
+    assert booked == ["Porto"]
+    assert state.tool_calls[0].result == "booked Porto"
+
+
+async def test_REQ_035_6_notice_is_logged_only_at_debug(
+    reflex_harness: ReflexHarness, caplog: pytest.LogCaptureFixture
+) -> None:
+    """REQ-035.6: the notice holds user content, so nothing about it is logged above DEBUG."""
+    caplog.set_level(logging.DEBUG, logger="reflex_agentkit")
+    state = await _pause(reflex_harness, "log")
+    await reflex_harness.call(
+        "log",
+        HotelState,
+        "approve_tool",
+        call_id=state.pending_approvals[0].id,
+        edited_args={"city": "Porto"},
+    )
+    porto = [r for r in caplog.records if "Porto" in r.getMessage()]
+    assert porto, "the notice is logged at DEBUG"
+    assert all(r.levelno == logging.DEBUG for r in porto)
 
 
 async def test_REQ_022_2_reject_does_not_run_the_tool(reflex_harness: ReflexHarness) -> None:

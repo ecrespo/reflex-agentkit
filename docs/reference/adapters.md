@@ -18,6 +18,7 @@ PydanticAIAgent(
     *,
     deps: Any = None,
     deps_factory: Callable[[RunAgentInput], Any | Awaitable[Any]] | None = None,
+    notify_edited_args: bool = True,
     **run_kwargs,  # passed to AGUIAdapter.run_stream, e.g. model_settings, usage_limits
 )
 ```
@@ -27,6 +28,11 @@ PydanticAIAgent(
   receives the run input, so it can build per-thread dependencies.
 - Tools with `requires_approval=True` pause the run for approval with no other setup: the
   adapter adds `DeferredToolRequests` to the run's output type.
+- When the user approves with edited arguments, the tool's result gets a notice for the
+  model: "Note: the user edited this tool call's arguments before approving it, so the
+  tool ran with: {...}. These are the arguments the user wants: ..." Without it, models tend to treat the edit as a wrong result and call
+  the tool again. The tool card shows the notice too. `notify_edited_args=False` turns it
+  off.
 - Client tools reach the model as frontend tools.
 - Shared state: give the agent `deps_type=StateDeps[MyModel]` and set
   `shared_state_model = MyModel` on the state. A tool updates the state by returning
@@ -77,7 +83,15 @@ class ApprovalDecision:
     approved: bool
     args: dict[str, Any]       # the edited arguments if the user edited them
     reason: str | None = None
+    edited: bool = False       # the user approved with different arguments
+
+    def tool_result(self, result: Any) -> Any: ...
 ```
+
+Build the `ToolMessage` from `decision.tool_result(result)`. When the user edited the
+arguments, it appends the same notice the PydanticAI adapter uses, so the model knows the
+change was deliberate. Otherwise it returns `result` unchanged. Edits identical to the
+proposed arguments count as a plain approval.
 
 Call it inside a graph node or tool. The UI shows a `pending_approval` tool card instead
 of a generic question. A cancelled approval returns

@@ -9,7 +9,7 @@ def test_package_imports() -> None:
     """REQ-031.1: the package and its pure core import cleanly."""
     import reflex_agentkit.core
 
-    assert reflex_agentkit.__version__ == "0.1.0"
+    assert reflex_agentkit.__version__ == "0.2.0"
 
 
 def test_unknown_attribute_raises_attribute_error() -> None:

@@ -128,14 +128,14 @@ async def _pause_for_approval(rx_: ReflexHarness, token: str) -> HotelGraphState
 async def test_REQ_034_3_approval_with_edits_reaches_the_tool(
     reflex_harness: ReflexHarness,
 ) -> None:
-    """REQ-034.3: the helper returns the decision, edited args included."""
+    """REQ-034.3, REQ-035.2: the helper returns the decision, edits flagged."""
     await _pause_for_approval(reflex_harness, "edit")
     await reflex_harness.call(
         "edit", HotelGraphState, "approve_tool", call_id="c1", edited_args={"city": "Porto"}
     )
     state = await reflex_harness.state("edit", HotelGraphState)
     assert state.run_status == RunStatus.IDLE, state.error
-    assert decisions == [ApprovalDecision(approved=True, args={"city": "Porto"})]
+    assert decisions == [ApprovalDecision(approved=True, args={"city": "Porto"}, edited=True)]
     call = next(c for c in state.tool_calls if c.id == "c1")
     assert call.status == ToolCallStatus.DONE
     assert call.result == "Booked Porto"

@@ -125,7 +125,39 @@ def test_REQ_034_3_approved_returns_the_original_args(fake: FakeInterrupt) -> No
 
 def test_REQ_034_3_edited_args_take_precedence(fake: FakeInterrupt) -> None:
     decision = _approve(fake, {"approved": True, "editedArgs": {"city": "Porto", "nights": 3}})
-    assert decision == ApprovalDecision(approved=True, args={"city": "Porto", "nights": 3})
+    assert decision == ApprovalDecision(
+        approved=True, args={"city": "Porto", "nights": 3}, edited=True
+    )
+
+
+def test_REQ_035_2_tool_result_appends_the_notice_when_edited(fake: FakeInterrupt) -> None:
+    """REQ-035.2: an edited approval's result carries the edited-arguments notice."""
+    decision = _approve(fake, {"approved": True, "editedArgs": {"city": "Porto", "nights": 3}})
+    assert decision.tool_result("Booked.") == (
+        "Booked.\n\nNote: the user edited this tool call's arguments before approving it, "
+        'so the tool ran with: {"city": "Porto", "nights": 3}. These are the arguments the '
+        "user wants: do not call the tool again to restore the earlier ones, and do not "
+        "report the change as an error."
+    )
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"approved": True},
+        {"approved": True, "editedArgs": dict(ARGS)},
+        {"approved": False, "reason": "no"},
+    ],
+    ids=["plain", "unchanged-edit", "rejected"],
+)
+def test_REQ_035_3_tool_result_is_unchanged_without_edits(
+    fake: FakeInterrupt, payload: Any
+) -> None:
+    """REQ-035.3, REQ-035.5: no notice without a real edit, nor on rejection."""
+    decision = _approve(fake, payload)
+    assert decision.edited is False
+    assert decision.tool_result("Booked.") == "Booked."
+    assert decision.tool_result({"ok": 1}) == {"ok": 1}
 
 
 def test_REQ_034_3_rejection_carries_the_reason(fake: FakeInterrupt) -> None:

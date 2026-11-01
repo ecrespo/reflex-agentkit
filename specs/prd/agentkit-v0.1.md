@@ -5,8 +5,8 @@
 | Field | Value |
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
-| **Status** | `APPROVED` · `RELEASED` in `0.1.0` (2026-10-31) |
-| **Version** | 1.3 |
+| **Status** | `APPROVED` · `RELEASED` in `0.1.0` (2026-10-31); REQ-035 changes in `0.2.0` (2026-10-31) |
+| **Version** | 1.4 |
 | **Date** | 2026-10-30 |
 | **Reviewers** | Ernesto Crespo |
 | **Last updated** | 2026-10-30 |
@@ -300,7 +300,7 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 #### REQ-013 — Tool approval interrupts · `MUST`
 1. WHEN `RUN_FINISHED` carries an interrupt with `reason == "tool_call"` and a `toolCallId`, THE SYSTEM SHALL set that tool call's status to `pending_approval` and attach the interrupt ID.
 2. WHEN `approve_tool(call_id)` is called for a `pending_approval` call, THE SYSTEM SHALL record the answer `{"approved": true}` and set the call's status to `running`.
-3. WHEN `approve_tool(call_id, edited_args)` is called with a dict, THE SYSTEM SHALL record `{"approved": true, "editedArgs": edited_args}` and show `edited_args` as the call's args.
+3. WHEN `approve_tool(call_id, edited_args)` is called with a dict that differs from the call's current args, THE SYSTEM SHALL record `{"approved": true, "editedArgs": edited_args}` and show `edited_args` as the call's args (an unchanged dict is a plain approval, REQ-035.5).
 4. WHEN `reject_tool(call_id, reason)` is called, THE SYSTEM SHALL record `{"approved": false, "reason": reason}` (reason omitted when `None`) and set the call's status to `rejected`.
 5. WHEN every interrupt of the paused run has an answer, THE SYSTEM SHALL start the next run automatically, with `RunAgentInput.resume[]` holding one `ResumeEntry(status="resolved")` per interrupt, on the same `thread_id`.
 6. IF `approve_tool` or `reject_tool` names a call that is not `pending_approval`, THEN THE SYSTEM SHALL ignore the call and leave the state unchanged.
@@ -316,6 +316,17 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 1. WHILE `run_status == awaiting_input`, THE SYSTEM SHALL disable the composer and ignore `send_message`.
 2. WHEN `cancel_run()` is called while `run_status == awaiting_input`, THE SYSTEM SHALL mark open approvals `rejected`, clear `pending_interrupt`, set `run_status` to `cancelled`, and remember the open interrupt IDs.
 3. WHEN the next run starts after a cancelled pause, THE SYSTEM SHALL include a `ResumeEntry(status="cancelled")` for each remembered interrupt ID, so the agent's protocol state stays consistent.
+
+#### REQ-035 — Tell the model about edited arguments · `MUST`
+*Added by `changes/_archive/2026-11-edited-args-notice/`, released in `0.2.0`.*
+1. WHEN a tool call approved with `editedArgs` runs through the PydanticAI adapter, THE SYSTEM SHALL give the model a tool result made of the tool's own result followed by the edited-arguments notice.
+2. WHEN a LangGraph node calls `ApprovalDecision.tool_result(result)` for a decision approved with edited arguments, THE SYSTEM SHALL return the result followed by the edited-arguments notice; for any other decision it SHALL return `result` unchanged.
+3. WHEN a tool call is approved without edits, or is rejected, THE SYSTEM SHALL leave the tool result unchanged.
+4. WHERE `PydanticAIAgent` is constructed with `notify_edited_args=False`, THE SYSTEM SHALL leave the tool result unchanged even when the arguments were edited.
+5. IF `approve_tool` receives edited arguments equal to the call's current arguments, THEN THE SYSTEM SHALL record a plain approval, `{"approved": true}`, without `editedArgs`.
+6. THE SYSTEM SHALL log the notice only at DEBUG level.
+
+The notice (normative): the tool's result (non-string results serialized to JSON), a blank line, then `Note: the user edited this tool call's arguments before approving it, so the tool ran with: {effective arguments as JSON}. These are the arguments the user wants: do not call the tool again to restore the earlier ones, and do not report the change as an error.`. It is part of the tool result, so the tool card shows it too. TD DD-016 records the mechanics.
 
 ### 7.4 Shared state
 
@@ -553,6 +564,7 @@ browser. Each criterion has a stable ID `REQ-NNN.k`, and tests cite these IDs
 | 1.1 | 2026-10-30 | Ernesto Crespo (with Claude) | TD amendment A-8: extras contents in REQ-031.1 (Claude + Ollama providers; LangGraph `[fastapi]`). |
 | 1.2 | 2026-10-30 | Ernesto Crespo (with Claude) | Analyze fixes: REQ-004.1 keeps `running` during client-tool rounds (A-02); REQ-022.4 rewritten as testable injection (A-03); "human message" → `user` message (A-10). |
 | 1.3 | 2026-10-31 | Ernesto Crespo (with Claude) | REQ-007.6 (cross-worker cancel) raised from SHOULD to MUST: the flag path (TD Flow D.3) passes the T-031 test with two `StateManagerRedis` instances, cancelled in < 1 s. |
+| 1.4 | 2026-10-31 | Ernesto Crespo (with Claude) | Folded `changes/2026-11-edited-args-notice/`: REQ-035 added, REQ-013.3 modified (unchanged edits are plain approvals). Found in the manual run with Claude. |
 
 ## Approvals
 

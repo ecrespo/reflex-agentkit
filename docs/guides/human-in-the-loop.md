@@ -18,8 +18,10 @@ def book_hotel(city: str, nights: int) -> str:
 ```
 
 The dialog lets the user approve, edit the arguments as JSON, or reject with a reason.
-Edited arguments are what the tool receives. A rejection becomes the tool's result, so
-the model can react to it.
+Edited arguments are what the tool receives, and the tool's result tells the model that
+the user changed them, so it doesn't "correct" the edit by calling the tool again (turn
+this off with `PydanticAIAgent(agent, notify_edited_args=False)`). A rejection becomes the
+tool's result, so the model can react to it.
 
 ## Approvals with LangGraph
 
@@ -37,8 +39,13 @@ def act(state):
         result = book_hotel(**decision.args)  # the edited arguments, if any
     else:
         result = f"Rejected: {decision.reason or 'no reason given'}"
-    return {"messages": [ToolMessage(content=result, tool_call_id=call["id"])]}
+    content = decision.tool_result(result)  # tells the model about edits
+    return {"messages": [ToolMessage(content=content, tool_call_id=call["id"])]}
 ```
+
+`decision.tool_result(result)` appends a note when the user edited the arguments, so the
+model knows the change was deliberate. Without it, models often report the edited result
+as a mistake or call the tool again with their original arguments.
 
 The graph needs a checkpointer (for example `InMemorySaver`), because LangGraph resumes
 from its checkpoint.

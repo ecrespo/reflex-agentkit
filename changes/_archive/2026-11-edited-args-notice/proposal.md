@@ -1,6 +1,6 @@
 # Proposal: tell the model when the user edited a tool call's arguments
 
-> **Status:** proposed, pending implementation (to be reviewed by the maintainer before work starts)
+> **Status:** released in `0.2.0` (2026-10-31), folded into `specs/`
 > **Base specs:** `specs/prd/agentkit-v0.1.md` (REQ-013, REQ-033, REQ-034),
 > `specs/api/agentkit-python-api-v1.md` (§7.4, §7.6), `specs/technical/agentkit-architecture.md`
 > **Date:** 2026-10-31 · **Author:** Ernesto Crespo (with Claude)

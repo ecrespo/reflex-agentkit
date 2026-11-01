@@ -205,6 +205,15 @@ def test_REQ_013_3_approve_with_edited_args_records_payload(edited: object) -> N
     assert conv.tool_calls[0].args == {"city": "Porto"}
 
 
+@pytest.mark.parametrize("edited", [{"city": "Lisbon"}, '{"city": "Lisbon"}'], ids=["dict", "str"])
+def test_REQ_035_5_unchanged_edits_record_a_plain_approval(edited: object) -> None:
+    """REQ-035.5: edits equal to the current args are a plain approval, without ``editedArgs``."""
+    conv = apply_approval(_paused(_approval(), calls=(_pending_call(),)), "c1", edited)
+    assert conv.answers["int-c1"].payload == {"approved": True}
+    assert conv.tool_calls[0].args == {"city": "Lisbon"}
+    check_invariants(conv)
+
+
 @pytest.mark.parametrize(
     "edited",
     [[1, 2], "not json", '"a string"', {"big": "x" * MAX_PAYLOAD_BYTES}],

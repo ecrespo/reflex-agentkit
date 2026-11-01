@@ -121,7 +121,7 @@ def _with_call(conv: ConversationState, call: ToolCall) -> tuple[ToolCall, ...]:
 def apply_approval(
     conv: ConversationState, call_id: str, edited_args: object = None
 ) -> ConversationState:
-    """Approve a pending tool call, optionally with edited arguments (REQ-013.2-3, 013.7).
+    """Approve a pending tool call, optionally with edited arguments (REQ-013.2-3, 013.7, 035.5).
 
     A ``str`` ``edited_args`` is parsed as JSON. Edits that are not a JSON object or that
     exceed :data:`MAX_PAYLOAD_BYTES` serialized set ``INVALID_EDITED_ARGS`` and leave the
@@ -146,8 +146,9 @@ def apply_approval(
             return _invalid_edit(conv, "the edited arguments are not serializable as JSON")
         if too_large:
             return _invalid_edit(conv, f"the edited arguments exceed {MAX_PAYLOAD_BYTES} bytes")
-        args = edited_args
-        payload["editedArgs"] = edited_args
+        if edited_args != call.args:  # an unchanged "edit" is a plain approval (REQ-035.5)
+            args = edited_args
+            payload["editedArgs"] = edited_args
     running = replace(call, status=ToolCallStatus.RUNNING, args=args)
     answer = InterruptAnswer(interrupt_id=interrupt.id, status="resolved", payload=payload)
     return _record(conv, answer, tool_calls=_with_call(conv, running))

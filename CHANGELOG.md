@@ -7,15 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-31
+
 ### Added
 
 - The documentation site is published to GitHub Pages from `main`
   (<https://blog.seraph.to/reflex-agentkit/>).
-- Proposed change `changes/2026-11-edited-args-notice/`: tell the model when the user
-  edited a tool call's arguments (REQ-035, pending implementation).
+- The model is told when the user approves a tool call with edited arguments (REQ-035).
+  Without this, models tended to report the edited result as a mistake or call the tool
+  again with their own arguments.
+  - `PydanticAIAgent` appends a notice to the edited call's result. Turn it off with
+    `notify_edited_args=False`.
+  - For LangGraph, `ApprovalDecision` gains `edited` and `tool_result(result)`. Build the
+    `ToolMessage` from `decision.tool_result(...)`.
 
 ### Changed
 
+- Approving with "edited" arguments identical to the proposed ones now records a plain
+  approval, without `editedArgs` (REQ-013.3).
+- `astral-sh/setup-uv` is pinned to a commit SHA in every workflow.
 - Markdown-image exfiltration is an accepted residual risk; markdown images stay
   supported (TD v1.15).
 
@@ -129,5 +139,6 @@ The first release. `0.1.0rc1` was published on 2026-10-31 as its release candida
 - The latest-dependencies workflow runs the newest, unvetted versions without a token or
   stored git credentials; a separate job reports failures.
 
-[Unreleased]: https://github.com/ecrespo/reflex-agentkit/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/ecrespo/reflex-agentkit/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ecrespo/reflex-agentkit/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/ecrespo/reflex-agentkit/releases/tag/v0.1.0

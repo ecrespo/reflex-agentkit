@@ -58,7 +58,7 @@ def act(state: MessagesState) -> dict[str, Any]:
         if call["name"] == "book_trip":
             decision = request_tool_approval(call_id, "book_trip", call["args"])
             if decision.approved:
-                content = book_trip.invoke(decision.args)
+                content = decision.tool_result(book_trip.invoke(decision.args))
             else:
                 content = f"The user rejected the booking: {decision.reason or 'no reason'}."
         else:

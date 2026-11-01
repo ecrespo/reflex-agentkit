@@ -1,5 +1,8 @@
 # LangGraph docs: "Frontend with Reflex" (draft)
 
+!!! success "Submitted"
+    Proposed in [langchain-ai/docs#7266](https://github.com/langchain-ai/docs/issues/7266) on 2026-10-31. New pages need a linked issue and maintainer approval; open the PR once the issue is approved and assigned.
+
 !!! info "How to submit"
     - **Target repository:** [`langchain-ai/docs`](https://github.com/langchain-ai/docs)
       (the source of docs.langchain.com, written in Mintlify MDX)

@@ -1,5 +1,8 @@
 # AG-UI integrations table entry (draft)
 
+!!! success "Submitted"
+    Opened as [ag-ui-protocol/ag-ui#3280](https://github.com/ag-ui-protocol/ag-ui/pull/3280) on 2026-10-31.
+
 !!! info "How to submit"
     - **Target repository:** [`ag-ui-protocol/ag-ui`](https://github.com/ag-ui-protocol/ag-ui)
     - **File:** `README.md`, section **Clients** (the table with the columns *Client*,

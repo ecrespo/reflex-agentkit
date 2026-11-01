@@ -36,6 +36,7 @@ all = ["reflex-agentkit[pydantic-ai,langgraph]"]
 
 [project.urls]
 Homepage = "https://github.com/ecrespo/reflex-agentkit"
+Documentation = "https://blog.seraph.to/reflex-agentkit/"
 Repository = "https://github.com/ecrespo/reflex-agentkit"
 Issues = "https://github.com/ecrespo/reflex-agentkit/issues"
 Changelog = "https://github.com/ecrespo/reflex-agentkit/blob/main/CHANGELOG.md"

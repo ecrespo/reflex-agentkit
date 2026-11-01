@@ -1,6 +1,6 @@
 site_name: reflex-agentkit
 site_description: The production UI layer for Python AI agents, built on Reflex and the AG-UI protocol.
-site_url: https://ecrespo.github.io/reflex-agentkit/
+site_url: https://blog.seraph.to/reflex-agentkit/
 repo_url: https://github.com/ecrespo/reflex-agentkit
 repo_name: ecrespo/reflex-agentkit
 edit_uri: edit/develop/docs/

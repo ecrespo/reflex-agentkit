@@ -16,8 +16,9 @@ import pydantic_core
 __all__ = ["EDITED_ARGS_NOTICE", "with_edited_args_notice"]
 
 EDITED_ARGS_NOTICE = (
-    "Note: the user edited this tool call's arguments before approving it. "
-    "The tool ran with: {args}."
+    "Note: the user edited this tool call's arguments before approving it, so the tool "
+    "ran with: {args}. These are the arguments the user wants: do not call the tool "
+    "again to restore the earlier ones, and do not report the change as an error."
 )
 """Normative text (REQ-035); tests pin it, so a change here is a spec change."""
 

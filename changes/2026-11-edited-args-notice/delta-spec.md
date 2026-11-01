@@ -26,12 +26,15 @@ proposal were resolved in T-053 (see DD-013 below).
 **The edited-arguments notice (normative, tested):**
 
 ```text
-Note: the user edited this tool call's arguments before approving it. The tool ran with: {effective arguments as JSON}.
+Note: the user edited this tool call's arguments before approving it, so the tool ran with: {effective arguments as JSON}. These are the arguments the user wants: do not call the tool again to restore the earlier ones, and do not report the change as an error.
 ```
 
 - The notice follows the tool's result, separated by a blank line.
 - A result that is not a string is serialized to JSON first.
 - The notice is part of the tool result, so the tool card in the UI shows it too.
+- The last sentence is there because, in the T-056 check, a notice that only stated the
+  change still led Claude to describe the result as "not what you asked for". With it,
+  Claude explains that the booking was changed before approval, which is accurate.
 - It names only the effective arguments (OQ-2). The model's earlier call in the
   history already carries the edited arguments (REQ-013.3), so the server can't
   recover the original ones, and client-sent history isn't trusted anyway.

@@ -134,8 +134,10 @@ def test_REQ_035_2_tool_result_appends_the_notice_when_edited(fake: FakeInterrup
     """REQ-035.2: an edited approval's result carries the edited-arguments notice."""
     decision = _approve(fake, {"approved": True, "editedArgs": {"city": "Porto", "nights": 3}})
     assert decision.tool_result("Booked.") == (
-        "Booked.\n\nNote: the user edited this tool call's arguments before approving it. "
-        'The tool ran with: {"city": "Porto", "nights": 3}.'
+        "Booked.\n\nNote: the user edited this tool call's arguments before approving it, "
+        'so the tool ran with: {"city": "Porto", "nights": 3}. These are the arguments the '
+        "user wants: do not call the tool again to restore the earlier ones, and do not "
+        "report the change as an error."
     )
 
 

@@ -67,8 +67,9 @@ async def test_REQ_022_2_approve_runs_the_tool(reflex_harness: ReflexHarness) ->
 
 
 NOTICE = (
-    "booked Porto\n\nNote: the user edited this tool call's arguments before approving it. "
-    'The tool ran with: {"city": "Porto"}.'
+    "booked Porto\n\nNote: the user edited this tool call's arguments before approving it, "
+    'so the tool ran with: {"city": "Porto"}. These are the arguments the user wants: do not '
+    "call the tool again to restore the earlier ones, and do not report the change as an error."
 )
 
 

@@ -17,7 +17,7 @@
   (REQ-035.2–6).
 - [ ] **T-056** Dojo `human_in_the_loop` demos (both), the HITL guide and the adapters
   reference use the new pattern. Re-run the manual check with Claude and with Ollama:
-  after approving Lisbon → Porto, the model must neither call the tool again nor report
-  a mismatch.
+  after approving Lisbon → Porto, the model must not call the tool again or treat the
+  change as an error. Mentioning that the user changed the booking is fine, and accurate.
 - [ ] **T-057** Fold the delta into `specs/` (PRD REQ-035, API §7.1 and §7.6, TD DD-013),
   CHANGELOG `[0.2.0]` entry, and archive this folder to `changes/_archive/`.

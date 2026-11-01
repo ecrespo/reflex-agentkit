@@ -1,6 +1,6 @@
 # Tasks: edited-arguments notice
 
-> Status: pending implementation. Do not start until the proposal is approved.
+> Status: approved 2026-10-31, in implementation.
 > Rules: same as `specs/tasks/agentkit-tasks.md` (test-first, `test_REQ_035_k_...`, gates
 > green, README and CHANGELOG updated). Folding the delta into `specs/` is part of the
 > last task.

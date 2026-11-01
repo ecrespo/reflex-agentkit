@@ -6,7 +6,7 @@
 |---|---|
 | **Author** | Ernesto Crespo (`ecrespo`) |
 | **Status** | `APPROVED` (2026-10-30) · `RELEASED` in `0.1.0` (2026-10-31) |
-| **Version** | 1.14 |
+| **Version** | 1.15 |
 | **Date** | 2026-10-30 |
 | **PRD** | [`specs/prd/agentkit-v0.1.md`](../prd/agentkit-v0.1.md) (APPROVED) |
 | **API Spec** | [`specs/api/agentkit-python-api-v1.md`](../api/agentkit-python-api-v1.md) (APPROVED) |
@@ -517,7 +517,7 @@ docs/      (MkDocs Material)   docs/integrations/ (upstream PR drafts)
 | Oversized payloads in `send_message`, `approve_tool(edited_args)`, `respond_to_interrupt` | Memory / cost abuse | `max_message_length` (32k chars). `edited_args` and interrupt payloads are capped at 64 KiB of serialized JSON → `INVALID_EDITED_ARGS` / ignored with a warning. Reflex's own frame size limit is the outer bound. |
 | `approve_tool` on another user's call | Cross-user action | Impossible: state is per token (REQ-003). Call IDs are looked up only in that session's `_conv`. |
 | LLM output with HTML/JS (XSS) | Script execution in users' browsers | DD-015: no raw HTML in markdown; args and results rendered as text. |
-| Prompt injection that makes the agent emit a markdown image or link to an attacker's URL carrying conversation data | Data exfiltration when the browser loads the image | Residual risk, documented on the security model page: `rx.markdown` (react-markdown) strips `javascript:` URLs but loads remote images. A stricter renderer (images as links) would change observable behavior and needs a delta spec. |
+| Prompt injection that makes the agent emit a markdown image or link to an attacker's URL carrying conversation data | Data exfiltration when the browser loads the image | Accepted residual risk (maintainer decision, 2026-10-31), documented on the security model page: `rx.markdown` (react-markdown) strips `javascript:` URLs but loads remote images, and markdown images stay supported. Apps that need more control render messages with their own component. |
 | Prompt injection leading to dangerous tool calls | Unwanted actions | Product control: `requires_approval` tools (REQ-013/018.3) and the edit/reject UI. Documented in the security model page (REQ-033.3). |
 | Browser calls Reflex's built-in `setvar` | Writing public vars | Reflex 0.10 has no auto-setters, so `setvar` fails for our vars. Even if it did not, public vars are a projection of the backend-only `_conv`: a forged write changes only that user's own view until the next publish, never the input sent to the agent. |
 | A malicious or compromised AG-UI server (sidecar or third party) | Malformed events, huge streams | Schema validation per event (REQ-012.3). Bounded queue. `max_message_length` is *not* applied to agent output. Read timeout (REQ-021.4). Documented: the agent endpoint is trusted infrastructure. |
@@ -691,3 +691,4 @@ history as v1.1, not delta specs (Art. 9 delta specs apply to shipped behavior).
 | 1.12 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: no TestPyPI; pre-releases and the final release go to PyPI through the `pypi` environment (maintainer decision). |
 | 1.13 | 2026-10-31 | Ernesto Crespo (with Claude) | §9.1: releases are automatic on a push to `main` with a new publishable version (maintainer decision). |
 | 1.14 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: two vectors found in the T-049 security review — browser-callable hooks (now excluded from Reflex's handler registration), `setvar`, and markdown-image exfiltration as a documented residual risk; the HTTP error body excerpt is logged at DEBUG only. |
+| 1.15 | 2026-10-31 | Ernesto Crespo (with Claude) | §6.1: markdown-image exfiltration is an accepted residual risk; markdown images stay supported (maintainer decision). |

@@ -37,6 +37,7 @@ from langgraph.graph.state import CompiledStateGraph  # noqa: E402
 from langgraph.types import Command, interrupt  # noqa: E402
 from langgraph.types import Interrupt as LangGraphInterrupt  # noqa: E402
 
+from reflex_agentkit.adapters._edits import with_edited_args_notice  # noqa: E402
 from reflex_agentkit.core.errors import ConfigurationError  # noqa: E402
 
 __all__ = ["ApprovalDecision", "LangGraphAGUIAgent", "request_tool_approval"]
@@ -76,11 +77,26 @@ class ApprovalDecision:
             otherwise the original ones.
         reason: The rejection reason, ``"cancelled"`` when the run was cancelled while
             waiting, or ``None``.
+        edited: Whether the user approved with arguments that differ from the proposed
+            ones (REQ-035.2, REQ-035.5).
     """
 
     approved: bool
     args: dict[str, Any]
     reason: str | None = None
+    edited: bool = False
+
+    def tool_result(self, result: Any) -> Any:
+        """The result to give the model: with the edited-arguments notice when ``edited``.
+
+        Use it to build the ``ToolMessage`` so the model knows the user changed the
+        arguments on purpose (REQ-035.2). Without edits ``result`` comes back unchanged.
+        """
+        if not self.edited:
+            return result
+        text = with_edited_args_notice(result, self.args)
+        _log.debug("edited-arguments notice: %s", text)
+        return text
 
 
 def request_tool_approval(
@@ -120,9 +136,9 @@ def _decision(answer: Any, args: dict[str, Any]) -> ApprovalDecision:
     if answer.get("approved") is not True:
         return ApprovalDecision(approved=False, args=args, reason=reason)
     edited = answer.get("editedArgs")
-    return ApprovalDecision(
-        approved=True, args=dict(edited) if isinstance(edited, Mapping) else args
-    )
+    if not isinstance(edited, Mapping) or dict(edited) == args:
+        return ApprovalDecision(approved=True, args=args)
+    return ApprovalDecision(approved=True, args=dict(edited), edited=True)
 
 
 class LangGraphAGUIAgent(LangGraphAgent):  # type: ignore[misc]  # untyped upstream base

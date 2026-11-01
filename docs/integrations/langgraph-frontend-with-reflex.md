@@ -91,7 +91,8 @@ def book(state):
     decision = request_tool_approval(str(call["id"]), call["name"], call["args"])
     if not decision.approved:
         return {"messages": [ToolMessage("Booking rejected.", tool_call_id=call["id"])]}
-    return {"messages": [ToolMessage(book_trip(**decision.args), tool_call_id=call["id"])]}
+    result = decision.tool_result(book_trip(**decision.args))  # notes any edits
+    return {"messages": [ToolMessage(result, tool_call_id=call["id"])]}
 ```
 
 Several interrupts in one step are answered one at a time and resumed together, each

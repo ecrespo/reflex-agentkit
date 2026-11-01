@@ -345,6 +345,7 @@ def tools(state: MessagesState) -> dict[str, Any]:
     call = last.tool_calls[0]
     decision = request_tool_approval(str(call["id"]), call["name"], call["args"])
     content = f"Booked {decision.args['city']}" if decision.approved else "Not booked"
+    content = decision.tool_result(content)  # tells the model about edited arguments
     return {"messages": [ToolMessage(content=content, tool_call_id=call["id"])]}
 
 
